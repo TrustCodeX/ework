@@ -1,0 +1,3 @@
+Pipeline at the receiving host. An envelope arrives at the federation inbox and passes through rate limit, author signature, address resolution, and credential comparison before delivery. A consent request instead goes to silent quarantine. Every refusal returns the same answer.
+
+The receiving host runs these checks in this order, and every failure produces the same refusal. Rate limiting comes first because it is the cheapest, and the credential is compared, not merely counted: checking only that a field was present was a real defect, found by measurement.

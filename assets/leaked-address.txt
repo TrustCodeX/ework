@@ -1,0 +1,3 @@
+Three attempts against the same host: a scraped address without the credential, an address that was retired, and an address that never existed. All three receive the same refusal, so the response reveals nothing.
+
+Three different situations, one identical answer: same status, same body, same timing. Measured over 300 samples per condition, guessing which situation produced a response works 53.7 percent of the time, against a coin-flip floor of 50.

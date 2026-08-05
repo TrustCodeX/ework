@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" viewBox="0 0 880 470" role="img" aria-label="Pipeline at the receiving host. An envelope arrives at the federation inbox and passes through rate limit, author signature, address resolution, and credential comparison before delivery. A consent request instead goes to silent quarantine. Every refusal returns the same answer.">
+  <defs>
+    <marker id="seta" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#e6e4dc"/>
+    </marker>
+  </defs>
+  <rect x="40" y="10" width="300" height="52" rx="8" fill="#1d1d22" stroke="#e6e4dc" stroke-width="1.5" stroke-dasharray="5 4"/>
+  <text x="190.0" y="31.0" text-anchor="middle" font-size="13" font-weight="600" fill="#e6e4dc">POST /ework/v1/inbox</text>
+  <text x="190.0" y="49.0" text-anchor="middle" font-size="11.5" fill="#a3a199">signed envelope, HTTPS</text>
+  <line x1="190.0" y1="62" x2="190.0" y2="80" stroke="#e6e4dc" stroke-width="1.5" marker-end="url(#seta)"/>
+  <rect x="40" y="84" width="300" height="52" rx="8" fill="#1d1d22" stroke="#e6e4dc" stroke-width="1.5"/>
+  <text x="190.0" y="105.0" text-anchor="middle" font-size="13" font-weight="600" fill="#e6e4dc">1. Rate limit</text>
+  <text x="190.0" y="123.0" text-anchor="middle" font-size="11.5" fill="#a3a199">per origin domain</text>
+  <path d="M 340 110.0 L 560 110.0 L 560 116.0" fill="none" stroke="#e6e4dc" stroke-width="1.2" stroke-dasharray="4 3"/>
+  <line x1="190.0" y1="154" x2="190.0" y2="172" stroke="#e6e4dc" stroke-width="1.5" marker-end="url(#seta)"/>
+  <rect x="40" y="176" width="300" height="52" rx="8" fill="#1d1d22" stroke="#e6e4dc" stroke-width="1.5"/>
+  <text x="190.0" y="197.0" text-anchor="middle" font-size="13" font-weight="600" fill="#e6e4dc">2. Author signature</text>
+  <text x="190.0" y="215.0" text-anchor="middle" font-size="11.5" fill="#a3a199">verified against the key in the envelope</text>
+  <path d="M 340 202.0 L 560 202.0 L 560 208.0" fill="none" stroke="#e6e4dc" stroke-width="1.2" stroke-dasharray="4 3"/>
+  <line x1="190.0" y1="246" x2="190.0" y2="264" stroke="#e6e4dc" stroke-width="1.5" marker-end="url(#seta)"/>
+  <rect x="40" y="268" width="300" height="52" rx="8" fill="#1d1d22" stroke="#e6e4dc" stroke-width="1.5"/>
+  <text x="190.0" y="289.0" text-anchor="middle" font-size="13" font-weight="600" fill="#e6e4dc">3. Resolve address</text>
+  <text x="190.0" y="307.0" text-anchor="middle" font-size="11.5" fill="#a3a199">which local account, if any</text>
+  <path d="M 340 294.0 L 560 294.0 L 560 300.0" fill="none" stroke="#e6e4dc" stroke-width="1.2" stroke-dasharray="4 3"/>
+  <line x1="190.0" y1="338" x2="190.0" y2="356" stroke="#e6e4dc" stroke-width="1.5" marker-end="url(#seta)"/>
+  <rect x="40" y="360" width="300" height="52" rx="8" fill="#1d1d22" stroke="#e6e4dc" stroke-width="1.5"/>
+  <text x="190.0" y="381.0" text-anchor="middle" font-size="13" font-weight="600" fill="#e6e4dc">4. Compare credential</text>
+  <text x="190.0" y="399.0" text-anchor="middle" font-size="11.5" fill="#a3a199">the one issued for this relationship</text>
+  <path d="M 340 386.0 L 560 386.0 L 560 392.0" fill="none" stroke="#e6e4dc" stroke-width="1.2" stroke-dasharray="4 3"/>
+  <line x1="190.0" y1="430" x2="190.0" y2="448" stroke="#6fc9a5" stroke-width="2" marker-end="url(#seta)"/>
+  <rect x="40" y="452" width="300" height="52" rx="8" fill="#16302a" stroke="#6fc9a5" stroke-width="2"/>
+  <text x="190.0" y="473.0" text-anchor="middle" font-size="13" font-weight="600" fill="#e6e4dc">Delivered</text>
+  <text x="190.0" y="491.0" text-anchor="middle" font-size="11.5" fill="#a3a199">a task in the inbox</text>
+  <rect x="560" y="150" width="280" height="56" rx="8" fill="#1d1d22" stroke="#e6e4dc" stroke-width="1.5"/>
+  <text x="700.0" y="173.0" text-anchor="middle" font-size="13" font-weight="600" fill="#e6e4dc">One refusal for every failure</text>
+  <text x="700.0" y="191.0" text-anchor="middle" font-size="11.5" fill="#a3a199">no step says which one failed</text>
+  <path d="M 560 178 L 560 178" fill="none" stroke="#e6e4dc"/>
+  <path d="M 340 360 L 700 360 L 700 320" fill="none" stroke="#e6e4dc" stroke-width="1.5" marker-end="url(#seta)"/>
+  <text x="710" y="356" font-size="11.5" fill="#a3a199">type is consent.request</text>
+  <rect x="560" y="262" width="280" height="52" rx="8" fill="#1d1d22" stroke="#e6e4dc" stroke-width="1.5" stroke-dasharray="5 4"/>
+  <text x="700.0" y="283.0" text-anchor="middle" font-size="13" font-weight="600" fill="#e6e4dc">Silent quarantine</text>
+  <text x="700.0" y="301.0" text-anchor="middle" font-size="11.5" fill="#a3a199">consent requests only</text>
+</svg>

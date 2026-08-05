@@ -1,0 +1,3 @@
+Comparison. In email, a message crosses the server and is delivered to the inbox, where a filter guesses whether it is spam. In e-work, the consent check happens at the server edge before delivery, so what reaches the inbox was invited.
+
+Email delivers first and filters afterwards, so the cost of being wrong is yours: false positives hide real mail, false negatives reach you. e-work decides at the edge, before delivery, using a rule you wrote. Nothing guesses.

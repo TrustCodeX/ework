@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" viewBox="0 0 880 320" role="img" aria-label="Comparison. In email, a message crosses the server and is delivered to the inbox, where a filter guesses whether it is spam. In e-work, the consent check happens at the server edge before delivery, so what reaches the inbox was invited.">
+  <defs>
+    <marker id="seta" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#23231f"/>
+    </marker>
+  </defs>
+  <text x="0" y="24" font-size="13" font-weight="600" fill="#63625c">Email</text>
+  <rect x="10" y="56" width="160" height="54" rx="8" fill="#ffffff" stroke="#23231f" stroke-width="1.5"/>
+  <text x="90.0" y="78.0" text-anchor="middle" font-size="13" font-weight="600" fill="#23231f">Anyone</text>
+  <text x="90.0" y="96.0" text-anchor="middle" font-size="11.5" fill="#63625c">no invitation needed</text>
+  <line x1="170" y1="83.0" x2="286" y2="83.0" stroke="#23231f" stroke-width="1.5" marker-end="url(#seta)"/>
+  <text x="228.0" y="75.0" text-anchor="middle" font-size="11.5" fill="#63625c">delivers</text>
+  <rect x="290" y="56" width="180" height="54" rx="8" fill="#ffffff" stroke="#23231f" stroke-width="1.5"/>
+  <text x="380.0" y="78.0" text-anchor="middle" font-size="13" font-weight="600" fill="#23231f">Server</text>
+  <text x="380.0" y="96.0" text-anchor="middle" font-size="11.5" fill="#63625c">accepts everything</text>
+  <line x1="470" y1="83.0" x2="586" y2="83.0" stroke="#23231f" stroke-width="1.5" marker-end="url(#seta)"/>
+  <text x="528.0" y="75.0" text-anchor="middle" font-size="11.5" fill="#63625c">delivers</text>
+  <rect x="590" y="56" width="260" height="54" rx="8" fill="#ffffff" stroke="#23231f" stroke-width="1.5" stroke-dasharray="5 4"/>
+  <text x="720.0" y="78.0" text-anchor="middle" font-size="13" font-weight="600" fill="#23231f">Your inbox</text>
+  <text x="720.0" y="96.0" text-anchor="middle" font-size="11.5" fill="#63625c">filter guesses here</text>
+  <text x="720" y="132" text-anchor="middle" font-size="11.5" fill="#63625c">filters after</text>
+  <text x="0" y="184" font-size="13" font-weight="600" fill="#63625c">e-work</text>
+  <rect x="10" y="208" width="160" height="54" rx="8" fill="#ffffff" stroke="#23231f" stroke-width="1.5"/>
+  <text x="90.0" y="230.0" text-anchor="middle" font-size="13" font-weight="600" fill="#23231f">Anyone</text>
+  <text x="90.0" y="248.0" text-anchor="middle" font-size="11.5" fill="#63625c">no invitation needed</text>
+  <line x1="170" y1="235.0" x2="286" y2="235.0" stroke="#23231f" stroke-width="1.5" marker-end="url(#seta)"/>
+  <rect x="290" y="208" width="180" height="54" rx="8" fill="#e3f2ec" stroke="#1d6f56" stroke-width="2"/>
+  <text x="380.0" y="230.0" text-anchor="middle" font-size="13" font-weight="600" fill="#23231f">Edge</text>
+  <text x="380.0" y="248.0" text-anchor="middle" font-size="11.5" fill="#63625c">were you invited?</text>
+  <line x1="470" y1="235.0" x2="586" y2="235.0" stroke="#1d6f56" stroke-width="2" marker-end="url(#seta)"/>
+  <text x="528.0" y="227.0" text-anchor="middle" font-size="11.5" fill="#63625c">invited passes</text>
+  <rect x="590" y="208" width="260" height="54" rx="8" fill="#ffffff" stroke="#23231f" stroke-width="1.5"/>
+  <text x="720.0" y="230.0" text-anchor="middle" font-size="13" font-weight="600" fill="#23231f">Your inbox</text>
+  <text x="720.0" y="248.0" text-anchor="middle" font-size="11.5" fill="#63625c">only the invited</text>
+  <text x="380" y="284" text-anchor="middle" font-size="11.5" fill="#1d6f56">decides before</text>
+  <path d="M 380 292 L 380 310" fill="none" stroke="#23231f" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="394" y="310" font-size="11.5" fill="#63625c">the rest stops here</text>
+</svg>

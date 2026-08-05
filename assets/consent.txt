@@ -1,0 +1,3 @@
+Flow diagram. First contact: issuer knocks, the host edge finds no relationship, the knock waits in silent quarantine, you grant consent, and an address plus credential are minted. Afterwards: the issuer sends an offer carrying that credential, the edge checks it matches, and the task lands in your inbox; a wrong credential is refused with no consent.
+
+The first contact from a stranger reaches a silent quarantine, never your inbox. Granting consent mints an address and a credential that exist only for that relationship. From then on their offers pass the edge without asking again.
