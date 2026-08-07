@@ -137,7 +137,7 @@ E1 to E6 are phase 1 of the roadmap, E7 is phase 2, E8 and E9 are phase 3, and E
 
 ## 5. Open decisions
 
-1. **Is Rust confirmed for the core?** The argument is OpenMLS and compilation to wasm and FFI. The cost is the learning curve if Michel is writing alone, and the honest alternative would be Go on the server with the cryptographic core still in Rust, accepting one more boundary.
+1. **Is Rust confirmed for the core?** The argument is OpenMLS and compilation to wasm and FFI. The cost is the learning curve if one person is writing alone, and the honest alternative would be Go on the server with the cryptographic core still in Rust, accepting one more boundary.
 2. **App: Flutter or native?** Flutter delivers both platforms from one base, and the FFI to the core is a solved problem. Native gives better critical alarms and high priority notifications, which is precisely the S4 scenario.
 3. **Are the web wallet and the web client the same app?** The proposal: they start separate (the wallet is configuration, the client is daily use), and they may converge later. Separating reduces the scope of the first web deliverable.
 4. **Where to host the public sandbox** and under which domain, which depends on the protocol's naming decision.
@@ -146,4 +146,4 @@ E1 to E6 are phase 1 of the roadmap, E7 is phase 2, E8 and E9 are phase 3, and E
 
 Issuer reputation, a global identity directory, a complete CalDAV bridge, chained subdelegation, human presence attestation in an enclave, payloads beyond the four in RFC 0008, and anything to do with organisational on-call. All of it has a place reserved in the specification and no place in the first year of code.
 
-Simple delegation to an agent (RFC 0014) is the exception and comes early, at step E7.5: Michel runs agents himself, it is the fastest way to exercise actor classes and execution policy with a real load, and scenario S6 depends on it.
+Simple delegation to an agent (RFC 0014) is the exception and comes early, at step E7.5: whoever operates the reference host already runs agents, it is the fastest way to exercise actor classes and execution policy with a real load, and scenario S6 depends on it.

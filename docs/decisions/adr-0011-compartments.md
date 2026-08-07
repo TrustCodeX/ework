@@ -1,10 +1,10 @@
 # ADR-0011: Visibility by cryptographic compartment, not by permission on the server
 
-**Status:** accepted (2026-08-04, decided with Michel)
+**Status:** accepted (2026-08-04)
 
 ## Context
 
-A real project has different kinds of task, with amounts, documents and personal data mixed together. The fitted furniture scenario makes it obvious: the fitter needs to know the delivery date and does not need to know how much the customer paid; supplier Beta must not see the price charged by supplier Gama; the customer wants to see everything. Michel put the requirement like this: the owner has to be able to mark what is sensitive data and decide who sees what, both in the project and in the task, and not everyone needs to see every task.
+A real project has different kinds of task, with amounts, documents and personal data mixed together. The fitted furniture scenario makes it obvious: the fitter needs to know the delivery date and does not need to know how much the customer paid; supplier Beta must not see the price charged by supplier Gama; the customer wants to see everything. The origin requirement, as it was put: the owner has to be able to mark what is sensitive data and decide who sees what, both in the project and in the task, and not everyone needs to see every task.
 
 The obvious implementation would be a permission list: every task and every field with a list of who may see it, enforced by the server.
 

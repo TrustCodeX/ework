@@ -1,14 +1,14 @@
 # ADR-0014: The entry is the unit, with message and action in the same object
 
-**Status:** accepted (2026-08-04, decided with Michel). Supersedes [ADR-0013](adr-0013-comments.md).
+**Status:** accepted (2026-08-04). Supersedes [ADR-0013](adr-0013-comments.md).
 
 ## Context
 
 ADR-0013 established that a comment is a signed record of the task and not a parallel chat, and that reason and act have to be atomic. The mechanism chosen was: the transition envelope carries an embedded comment.
 
-Michel pointed out the right inversion: underneath, a comment is `{ message, action }`, and an ordinary comment is simply the one where the action is null. Marking something complete is an entry with a message and an action; writing an observation is the same entry with a null action.
+The right inversion is this: underneath, a comment is `{ message, action }`, and an ordinary comment is simply the one where the action is null. Marking something complete is an entry with a message and an action; writing an observation is the same entry with a null action.
 
-The difference looks cosmetic and is not. In the previous model there are two categories of thing (transitions, which may carry a comment, and comments, which have no action) and therefore two lists to reconcile in the interface, in storage and in auditing. In Michel's model there is **one** category, and auditing is literally reading the list of entries: who did what, when, and why, in the same signed record.
+The difference looks cosmetic and is not. In the previous model there are two categories of thing (transitions, which may carry a comment, and comments, which have no action) and therefore two lists to reconcile in the interface, in storage and in auditing. In the chosen model there is **one** category, and auditing is literally reading the list of entries: who did what, when, and why, in the same signed record.
 
 It also solves an open product problem: the question "why do you want to mark this complete?" stops being a feature to invent and becomes the natural consequence of the action requiring a non-empty message.
 

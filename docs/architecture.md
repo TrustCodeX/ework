@@ -35,7 +35,7 @@ There is no mandatory global directory in v0.1: discovery is by handle and domai
 
 ## 3. Supported topologies
 
-1. **Individual self-hosting:** one binary plus a database in a homelab, one domain. The Michel case.
+1. **Individual self-hosting:** one binary plus a database in a homelab, one domain. The self-hoster case.
 2. **Family or community host:** a few dozen identities, one informal administrator.
 3. **Public provider:** "the Gmail of e-work", millions of boxes, the same protocol rules, with no privilege whatsoever.
 4. **Enterprise issuer:** its own host or an issuer gateway plugged into the ERP; to the rest of the network it is indistinguishable.

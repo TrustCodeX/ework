@@ -1,10 +1,10 @@
 # ADR-0012: Non-human actors as first-class citizens, with human confirmation anchored in a key
 
-**Status:** accepted (2026-08-04, decided with Michel)
+**Status:** accepted (2026-08-04)
 
 ## Context
 
-The specification had been assuming, without saying so, that behind a client there is a person. Michel pointed out that this is false and will become more false: a client can be a machine, an agent, an autonomous system or an AI, and the interesting part is that **there is not always a human in the loop, but some tasks require one**.
+The specification had been assuming, without saying so, that behind a client there is a person. This is false and will become more false: a client can be a machine, an agent, an autonomous system or an AI, and the interesting part is that **there is not always a human in the loop, but some tasks require one**.
 
 The problem, stated precisely: how does a task require a human to confirm, in an open protocol where anyone writes their own client and the server is blind? A `requiresHuman: true` flag that the other side's client is supposed to respect is exactly the kind of control ADR-0011 already rejected: a promise dependent on the goodwill of somebody else's software, undone by a script.
 

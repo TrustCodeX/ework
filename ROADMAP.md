@@ -26,7 +26,7 @@ The detailed technical execution (shared core, server, client, web wallet and th
 - [x] Beyond what was planned: an autonomous agent barred by key class (S6), silent retirement with no oracle, and detection of history tampering through the hash chain.
 - [x] A Python library (`impl/ework-py`) for issuing jobs from other projects, serving also as a second independent implementation. It found two real defects in the Rust core on its first run, which is exactly what it is for.
 - [x] A retry queue with backoff on the normative schedule of RFC 0005 §3, with a background worker, giving up by age and distinguishing transient from permanent errors. Tested by knocking the destination host over in the middle of a delivery.
-- [x] Running on a real domain: `michel@imake.codes` with the host at `ework.imake.codes` (delegation), stack in Arcane, image in Harbor.
+- [x] Running on a real domain: `ana@eworkprotocol.org` with the host at `app.eworkprotocol.org` (delegation), stack in Arcane, image in Harbor.
 - [x] Rate limiting on registration, session, handle probing, inbox and RPC, with an explicit refusal and `retryAfter`. Verified in production behind the tunnel, reading the real address from `cf-connecting-ip`.
 
 **Left the phase when:** scenario S1 ran end to end between two hosts, with consent, an offer carrying a binary attachment, acceptance, completion and status coming back. `impl/demo.sh` reproduces all of it.
@@ -60,7 +60,7 @@ Three security defects were found along the way, all of them by connecting the e
 - A client with an interface (proposal: Flutter, mobile first) usable by a non-technical person: onboarding with a recovery kit, quarantine of requests, accepting offers, urgency and acknowledgement.
 - Escalation (S4) with a consented contact.
 - Bridges: client-side CalDAV gateway plus `.ics` import; issuer REST gateway v0.
-- Real daily use by Michel and family (dogfooding): real bills through his own issuer gateway.
+- Real daily use by the author and family (dogfooding): real bills through their own issuer gateway.
 
 **Leaves the phase when:** a non-technical family member uses it for 30 days without support.
 

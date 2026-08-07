@@ -1,6 +1,6 @@
 # ADR-0003: Root identity by the user's key, with the readable address as an alias
 
-**Status:** accepted (2026-08-04, decided with Michel)
+**Status:** accepted (2026-08-04)
 
 ## Context
 The originating requirement is explicit: every client can connect to multiple servers with a single identity, and everything is end-to-end encrypted. An identity tied to the server (the email and Matrix model) contradicts both points: migrating servers becomes losing the account, and real E2EE requires the root of trust to belong to the user. The research confirmed it: identity coupled to the homeserver is Matrix's number one public regret, and AT Protocol (a stable DID plus a DNS handle) is the best design in its class.

@@ -1,3 +1,3 @@
-Two independent hosts. The dainner.app host fetches the well-known discovery document from imake.codes, learns its public key and inbox address, then posts an envelope signed with its own key, which the receiving host verifies.
+Two independent hosts. The example.net host fetches the well-known discovery document from eworkprotocol.org, learns its public key and inbox address, then posts an envelope signed with its own key, which the receiving host verifies.
 
 Discovery is a public document at the domain root, the same idea as an MX record. Each host signs what it forwards with its own key, and the other side verifies against the key it discovered. There is no registry in the middle.

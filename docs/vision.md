@@ -13,7 +13,7 @@ Email did this for messages. iCalendar and iTIP did it for corporate meetings. N
 ## Personas
 
 - **Cléia, 58, self-employed.** Pays seven bills a month, uses WhatsApp and her bank's app. She misses due dates because the bill arrives by email and disappears in the inbox. She has never configured a task app in her life and is not going to. For her, the task has to arrive ready, with a button to pay it.
-- **Michel, developer and self-hoster.** Wants to run his own host in his homelab, with everything end-to-end encrypted, and to aggregate his personal, family and work boxes into a single client. He is the advanced user who validates the promise of federation.
+- **Rafael, developer and self-hoster.** Wants to run his own host in his homelab, with everything end-to-end encrypted, and to aggregate his personal, family and work boxes into a single client. He is the advanced user who validates the promise of federation.
 - **Clínica Vida, 12 employees.** Confirms hundreds of appointments a month by phone and WhatsApp. It wants to send the appointment straight into the patient's box, with preparation instructions, and to receive a confirmation or a request to reschedule with no human involved.
 - **Acme Energia, 2 million customers.** Issues a monthly invoice. It knows part of its late payment is pure forgetfulness. Brazil's direct debit scheme only covers those who signed up at their bank and locks presentation into the bank's app; Acme wants an open channel, with a delivery receipt and acceptance status.
 - **Marcenaria Alfa plus three suppliers.** A fitted kitchen involves measuring, design, manufacturing, delivery and assembly, each stage at a different company, with real dependencies between them. Today the coordination is a WhatsApp group; the end customer has no view of the whole at all.
@@ -51,9 +51,9 @@ These six scenarios are the success criterion for the specification. Every desig
 
 ### S4. The critical task
 
-1. Michel's mother's controlled medication has to be taken at 8 a.m., every day. It is a recurring task with "critical" urgency and an escalation policy.
+1. Rafael's mother's controlled medication has to be taken at 8 a.m., every day. It is a recurring task with "critical" urgency and an escalation policy.
 2. At 8 a.m. all her devices ring at maximum priority (piercing silent mode, with prior system permission). The notification demands an acknowledgement, which is different from completion.
-3. With no acknowledgement within 15 minutes, the protocol escalates: it notifies Michel, who previously agreed to be an escalation contact. He calls his mother.
+3. With no acknowledgement within 15 minutes, the protocol escalates: it notifies Rafael, who previously agreed to be an escalation contact. He calls his mother.
 4. The acknowledgement pauses the escalation; completion closes the day's cycle. It is PagerDuty's state machine (trigger, acknowledge, resolve, with deduplication), domesticated for real life.
 
 ### S5. Self-management

@@ -4,7 +4,7 @@
 
 ## Context
 
-There was no way for the counterparties to talk about the task. Michel asked for comments synchronised between the parties, and gave the example that defines the design: "Bot says: I have just done the fix on the system, therefore Status: closed".
+There was no way for the counterparties to talk about the task. The origin requirement asks for comments synchronised between the parties, and gave the example that defines the design: "Bot says: I have just done the fix on the system, therefore Status: closed".
 
 That example does not describe a message followed by an action. It describes **one single thing**: the change of state and its reason. If they were two separate events, the reason could be lost, reordered, attributed to another author, or the transition could happen with no justification at all. It is the difference between a chat next to the task and the history of the task.
 

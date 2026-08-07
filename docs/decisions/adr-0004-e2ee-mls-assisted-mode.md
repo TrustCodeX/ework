@@ -1,9 +1,9 @@
 # ADR-0004: E2EE by default with MLS; assisted mode as an explicit opt-in
 
-**Status:** accepted (2026-08-04, decided with Michel)
+**Status:** accepted (2026-08-04)
 
 ## Context
-The originating requirement: "everything must be end-to-end encrypted", with the precise mental model Michel described: in a project of three people, each has their own key, the packet sent to everyone does not open for anyone outside, and adding someone starts letting that someone open the packets. That is literally group cryptography, and a ready-made IETF standard exists: MLS (RFC 9420), with real adoption in 2026 (RCS and the GSMA, Wire, Webex). The known cost of E2EE: a blind server cannot search, cannot run hosted automation and cannot escalate on its own.
+The originating requirement: "everything must be end-to-end encrypted", with the precise mental model The origin requirement describes: in a project of three people, each has their own key, the packet sent to everyone does not open for anyone outside, and adding someone starts letting that someone open the packets. That is literally group cryptography, and a ready-made IETF standard exists: MLS (RFC 9420), with real adoption in 2026 (RCS and the GSMA, Wire, Webex). The known cost of E2EE: a blind server cannot search, cannot run hosted automation and cannot escalate on its own.
 
 ## Decision
 1. **E2EE is the default** for all content: personal boxes, user-issuer relationships and projects.

@@ -6,14 +6,14 @@
 
 ADR-0008 solved how an existing relationship is protected: an address per relationship, rotation, a silent cut-off. A hole was left at the start of the story. Acme Energia has Cléia's tax ID, her phone number and perhaps her email. It does not have, and could not have, her e-work address. Without a bridge, initial consent can only be born in person (a QR code at the counter, a link on the printed invoice), which limits adoption exactly where it matters most.
 
-Michel proposed accepting the identifiers the world already uses: a phone number with country and area code, a tax ID (unique per person and therefore excellent for government use), an email address, and `user@server`, noting that this last form also serves to hide the identity key behind a managed server.
+The origin proposal was to accept the identifiers the world already uses: a phone number with country and area code, a tax ID (unique per person and therefore excellent for government use), an email address, and `user@server`, noting that this last form also serves to hide the identity key behind a managed server.
 
 The risk is proportional to the usefulness. A directory that answers "what is the address of whoever holds tax ID X" is an enumeration oracle over a space of roughly a billion numbers with a check digit, in a country where that database has already leaked several times. Built naively, it hands over a national map of who has an account, and turns the anti-fraud protocol into fraud infrastructure. Signal took years and a hardware enclave to mitigate the same problem with phone numbers; Matrix's identity servers tried to solve it with hashing and did not, because a small space is enumerable even when hashed.
 
 ## Decision
 
 1. **A human identifier is an attribute, not an identity.** The identity remains the root key. Phone, email and tax ID are attributes that **bind** to it, with a signed attestation, and can be revoked.
-2. **`user@server` remains the handle**, which has existed since ADR-0003 and fulfils exactly the role Michel described: a readable form that hides the key and allows using a managed server.
+2. **`user@server` remains the handle**, which has existed since ADR-0003 and fulfils exactly the role The origin requirement describes: a readable form that hides the key and allows using a managed server.
 3. **The directory is a doorbell, not a catalogue.** It never translates an attribute into an address. It accepts a consent request addressed to an attribute and forwards it if it knows the binding. Whoever queries receives no address at all.
 4. **The answer is always the same**, whether or not a binding exists. No existence oracle, consistent with EW-RFC 0003 §7.4.
 5. **Discovery is born switched off.** Nothing is discoverable until the user switches it on, per attribute and per requester class.

@@ -1,12 +1,12 @@
 # ADR-0010: Civil identifiers out of the scope of discovery
 
-**Status:** accepted (2026-08-04, decided with Michel). Supersedes [ADR-0009](adr-0009-human-identifiers.md).
+**Status:** accepted (2026-08-04). Supersedes [ADR-0009](adr-0009-human-identifiers.md).
 
 ## Context
 
 ADR-0009 designed discovery by human identifiers and included tax IDs (Brazil's CPF, an individual's CNPJ, the US SSN and equivalents) among the bindable attributes, with an accredited verifier's attestation and blind delivery. The justification was good: it is the identifier the company actually has when it issues a charge, it is unique per person and per country, and it would unlock government use.
 
-Michel decided to remove it. The decision is right, and for a stronger reason than the one discussed in ADR-0009.
+The decision was to remove it. The decision is right, and for a stronger reason than the one discussed in ADR-0009.
 
 There, the problem addressed was **enumeration**, and blind delivery already solved that: since no lookup returns an address, sweeping the tax ID space produces nothing but requests thrown into the void. By that measure, a tax ID was as safe as a phone number.
 

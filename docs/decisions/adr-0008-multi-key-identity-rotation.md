@@ -1,6 +1,6 @@
 # ADR-0008: Multi-key identity with an address per relationship, and rotation as an anti-abuse tool
 
-**Status:** accepted (2026-08-04, decided with Michel)
+**Status:** accepted (2026-08-04)
 
 ## Context
 
@@ -8,7 +8,7 @@ ADR-0003 fixed the root of the identity in a key belonging to the user, with a r
 
 In email, that scenario is terminal: there is only one address, once leaked it is leaked forever, you never find out who leaked it, and the only way out is to change address and tell the entire world. It was the asymmetry that killed email as a trustworthy channel.
 
-Michel put the requirement like this: connect the account to N servers, be able to hold N keys in the profile, and be able to recreate the key when somebody obtains it and starts sending spam, telling the servers you were part of which key was the old one and which is the new one, so as to stop receiving things from one specific place.
+The origin requirement, as it was put: connect the account to N servers, be able to hold N keys in the profile, and be able to recreate the key when somebody obtains it and starts sending spam, telling the servers you were part of which key was the old one and which is the new one, so as to stop receiving things from one specific place.
 
 The observation embedded in that is stronger than "key rotation": if the change has to stop one specific place without affecting the rest, then what rotates cannot be the whole identity. There has to be one key per relationship.
 

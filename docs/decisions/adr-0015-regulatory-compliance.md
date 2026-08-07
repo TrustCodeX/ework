@@ -1,10 +1,10 @@
 # ADR-0015: Regulatory compliance by design, with profiles over native mechanisms
 
-**Status:** accepted (2026-08-04, decided with Michel)
+**Status:** accepted (2026-08-04)
 
 ## Context
 
-Michel set the requirement: the protocol has to support Brazil's LGPD, HIPAA, the GDPR and other regimes. The practical reason is twofold. The issuers who give e-work its value are regulated (banks, clinics, government), and without a clear answer their legal department vetoes adoption before any technical evaluation. And the data subject's rights, which today are exercised through a customer service form, can become buttons: the protocol already has consent as an object, a complete export, symmetric revocation and a signed trail.
+The origin requirement sets out: the protocol has to support Brazil's LGPD, HIPAA, the GDPR and other regimes. The practical reason is twofold. The issuers who give e-work its value are regulated (banks, clinics, government), and without a clear answer their legal department vetoes adoption before any technical evaluation. And the data subject's rights, which today are exercised through a customer service form, can become buttons: the protocol already has consent as an object, a complete export, symmetric revocation and a signed trail.
 
 There are three real tensions that cannot be wished away: the right to erasure against the immutable history of ADR-0014; the issuer's mandatory legal retention against immediate revocation; and the fact that compliance is a property of a deployment (who operates what, where, under which contracts), never of a protocol.
 

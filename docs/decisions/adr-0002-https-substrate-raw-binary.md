@@ -1,9 +1,9 @@
 # ADR-0002: An HTTPS substrate, with attachments as raw binary
 
-**Status:** accepted (2026-08-04, decided with Michel)
+**Status:** accepted (2026-08-04)
 
 ## Context
-A new protocol has to choose where it lives: its own port with its own framing (the classic SMTP and IMAP spirit), a profile over an existing protocol (Matrix, ActivityPub, JMAP), or a new application protocol defined over the web substrate. Michel added one requirement: support for sending and receiving raw binary files, because that is smaller and scales better.
+A new protocol has to choose where it lives: its own port with its own framing (the classic SMTP and IMAP spirit), a profile over an existing protocol (Matrix, ActivityPub, JMAP), or a new application protocol defined over the web substrate. The origin requirement adds one item: support for sending and receiving raw binary files, because that is smaller and scales better.
 
 ## Decision
 1. EWP is a new application protocol defined over **HTTPS (HTTP/2 or better)**, with WebSocket or SSE for real time. It is the path Matrix and JMAP took: it crosses NAT and firewalls, works in a browser and on mobile, and hosts behind any reverse proxy.
