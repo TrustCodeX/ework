@@ -114,7 +114,7 @@ it.
 | Implement a client or a host | [The specification](spec/README.md), starting at `core` |
 | Attack it | [The threat model](docs/threat-model.md), 34 adversaries with residual risks |
 | See how the pieces fit | [The architecture](docs/architecture.md) |
-| Know why a decision was made | [The decisions](docs/decisions/adr-0001-open-federated-protocol.md), 23 ADRs, each with the alternatives it rejected and why |
+| Know why a decision was made | [The decisions](docs/decisions/adr-0001-open-federated-protocol.md), 24 ADRs, each with the alternatives it rejected and why |
 | Look up a term | [The glossary](docs/glossary.md) |
 | Know what is coming | [The roadmap](ROADMAP.md) |
 
