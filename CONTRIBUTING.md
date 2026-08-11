@@ -17,8 +17,8 @@ finding the holes rather than fixing the prose. Concretely:
   of them through the specification and hit a step that needs magic, that is
   the most valuable thing you can report.
 - **An attack the threat model misses.** [The threat model](docs/threat-model.md)
-  lists 29 adversaries with their mitigations and residual risks. A thirtieth,
-  or a mitigation that does not hold, is worth more than any wording fix.
+  lists {adversarios} adversaries with their mitigations and residual risks. One
+  more, or a mitigation that does not hold, is worth more than any wording fix.
 - **A place where the text says something different from what it means.**
   Normative words (MUST, SHOULD, MAY) carry weight; if one of them is used
   where the sentence is not normative, that is a real defect.

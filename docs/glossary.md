@@ -27,7 +27,7 @@ The project's vocabulary. The Portuguese column is kept because the drafts were 
 | Ack | ack | Acknowledgement of an urgent task. It pauses escalation; it does not complete anything. |
 | Escalation | escalonamento | The chain of progressive notification when a critical task is not acknowledged in time. |
 | Dedup key | chave de deduplicação | An idempotent identifier per issuer: resends update the existing task. |
-| Contact key | chave de contato | A key belonging to one relationship, with an address of its own. One per issuer, never listed publicly. |
+| Contact key | chave de contato | A key belonging to one relationship, with an address of its own. It identifies the user to that issuer without revealing the root, and validates the credential presented in the relationship's group. One per issuer, never listed publicly. |
 | Contact address, alias | endereço de contato | An opaque address derived from a contact key, known only to that relationship. |
 | Primary handle | handle principal | The person's public, stable address, used with those they invite personally. |
 | Key rotation statement | declaração de rotação | A signed object proving continuity between an old key and a new one. |
@@ -80,3 +80,8 @@ The project's vocabulary. The Portuguese column is kept because the drafts were 
 | Workspace | espaço | A context of the user's life (personal, family, work), typically a box of its own, possibly on a host of its own. |
 | Federation | federação | Server-to-server communication with signed envelopes, retries and the consent edge. |
 | EWP | EWP | e-work protocol, the protocol's abbreviation in this suite (a working name). |
+| Void entry | entrada sem efeito | An entry that stays recorded in the history and changes no state, because it arrived without the authority the action requires or because it is incompatible with the current state. |
+| Action authority | autoridade (de uma ação) | The role an identity must hold in the task for the action it signed to take effect. Distinct from authenticity, which is only who signed. |
+| Signed head | cabeça assinada | The periodic publication of the pair (task, hash of the most recent known entry), used to detect a fork in the history. |
+| Delegation proof | prova de delegação | An object signed by the key published in the addresses' domain, authorising a third-party host to serve that domain. |
+| Ciphersuite floor | piso de ciphersuite | The weakest cryptographic suite an implementation MAY accept; below it, the group is refused. |

@@ -82,8 +82,9 @@ In order of fit:
 - [ ] **Quantitative evaluation.** There is now a benchmark harness measuring the
       absence of a timing oracle, what an attacker achieves, and what consent
       costs a legitimate issuer. What is still missing is the comparison against
-      email with a real filter and against ActivityPub in the same scenario, and
-      federated latency over a real network rather than localhost.
+      email with a real filter and against ActivityPub in the same scenario,
+      federated latency over a real network rather than localhost, and the size
+      of the metadata the host observes.
 - [ ] **A formal threat model.** It exists as prose in
       [the threat model](../docs/threat-model.md); it needs to become the format
       the community expects, with a defined adversary and stated properties.

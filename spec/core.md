@@ -6,7 +6,7 @@ category: exp
 area: Applications and Real-Time
 author: Michel Wilhelm
 email: michelwilhelm@gmail.com
-normative: RFC2119,RFC8174,RFC8259,RFC8785,RFC8446,RFC9110,RFC8615,RFC2782,RFC6335,RFC8032,RFC9562
+normative: RFC2119,RFC8174,RFC8259,RFC8785,RFC8446,RFC9110,RFC8615,RFC2782,RFC6335,RFC8032,RFC9562,RFC8949
 ---
 
 This document specifies the core of the e-work Protocol (EWP), an open,
@@ -120,6 +120,31 @@ Phase 1 and 2 happen once per relationship. Phase 3 and 4 repeat for the life of
 that relationship. An envelope that arrives without a valid capability for the
 address it targets is refused at the edge, before it reaches the box.
 
+# Identifiers
+
+- **Object identifiers** (tasks, envelopes, consents): UUIDv7 {{RFC9562}},
+  represented as the canonical lowercase string. UUIDv7 embeds time, which
+  gives natural ordering without coordination.
+- **Timestamps:** RFC 3339 UTC (`2026-08-04T14:30:00Z`). Dates where the zone
+  matters (due dates) use a local date and time plus a separate IANA
+  `timeZone`, inheriting the JSCalendar model.
+- **Hashes:** SHA-256, represented as `sha256:<hex>`.
+- **Durations:** ISO 8601 (`PT15M`, `P2D`).
+
+# Addresses and URIs
+
+- **Handle:** `name@domain` (for example `cleia@ework.example`). Resolution and
+  proof are in the identity document.
+- **Organization identity:** the domain itself (`utility.example`), with an
+  optional local part for departments (`billing@utility.example`).
+- **URI scheme** (provisional, following the working name):
+  - `ework:cleia@ework.example` (identity)
+  - `ework:task/018f3a2e-...` (task)
+  - `ework:project/018f3b41-...` (project)
+  - `ework:consent/018f3c00-...` (consent)
+  - `ework:consent-offer/<base64url of the signed envelope>` (in-person offer,
+    see the consent document)
+
 # Envelope
 
 Every transfer between hosts is an envelope. Envelopes are JSON {{RFC8259}}
@@ -153,10 +178,31 @@ objects.
 | `sentAt` | string | yes | RFC 3339 timestamp |
 | `capability` | string | no | Credential bound to the target address |
 | `dedupKey` | string | no | Series identifier for idempotent redelivery |
-| `refs` | array of string | no | Envelope identifiers this one responds to |
+| `refs` | object | no | Thread references: `thread` and `inReplyTo` |
 | `urgencyHint` | string | no | Coarse hint, see the urgency document |
-| `body` | object | yes | Typed payload |
+| `body` | object | one of the two | Typed payload in the clear |
+| `ciphertext` | string | one of the two | Encrypted payload, see the cryptography document |
 | `proofs` | array of Proof | yes | One or more signatures |
+
+`refs` is an object: `thread` names the thread this envelope belongs to, and
+`inReplyTo` names the envelope it replies to.
+
+Exactly one of `body` (clear) or `ciphertext` (encrypted content, see the
+cryptography document) MUST be present. By default the semantic content travels
+in `ciphertext`; a clear `body` is used in handshakes (`consent.request`) and
+in assisted mode.
+
+The fields outside `body` and `ciphertext` are the **routing header**, the
+minimum that hosts need to read. The list above is exhaustive in version 0.1;
+any new header field requires a privacy review, see the cryptography document.
+
+`id` plus `from` give idempotency: a receiver that has already processed an
+envelope with the same `id` MUST discard resends without side effects and
+respond with success.
+
+`ciphertext` SHOULD be padded to the next size class (512 B, 2 KiB, 8 KiB,
+32 KiB, 128 KiB, 256 KiB) before sending, so that the header reveals the class
+and not the exact size of the content. Blobs stay outside the padding.
 
 Receivers MUST reject an envelope whose `ewp` major version they do not
 implement. Receivers MUST reject an envelope without at least one valid proof.
@@ -168,14 +214,20 @@ implement. Receivers MUST reject an envelope without at least one valid proof.
 | `consent.request` | issuer to person | Scope being requested |
 | `consent.grant` | person to issuer | Consent object and capability |
 | `consent.revoke` | person to issuer | Consent identifier |
+| `consent.pause` | person to issuer | Consent identifier |
 | `task.offer` | issuer to person | Proposed task |
 | `task.entry` | author to counterparties | Message and optional action |
 | `task.entry.retract` | author to counterparties | Retraction of an entry without an action |
 | `project.invite` | member to member | Project, circles, role |
 | `project.join` | member to members | Membership acceptance |
 | `project.leave` | member to members | Membership termination |
+| `group.commit` | member to members | MLS transport, see the cryptography document |
+| `group.welcome` | member to members | MLS transport, see the cryptography document |
+| `group.proposal` | member to members | MLS transport, see the cryptography document |
+| `group.message` | member to members | MLS transport, see the cryptography document |
 | `key.rotation` | identity to selected peers | Address rotation declaration |
 | `receipt.delivered` | host to host | Delivery receipt |
+| `receipt.processed` | recipient client to sender | Processing receipt, gated by the privacy policy; see the federation document |
 
 Accept, complete, and decline are deliberately **not** envelope types. They are
 values of `action` inside `task.entry`. The choice has a privacy consequence and
@@ -226,6 +278,11 @@ implementations verifying each other's signatures is the only practical test of
 this property, and the reference implementation exists in three languages for
 that reason.
 
+An alternative CBOR encoding {{RFC8949}} is negotiated with
+`Content-Type: application/ework+cbor`. The signature is always computed over
+the JCS canonical form of the JSON equivalent, so that one proof is valid in
+both encodings.
+
 # Host Discovery
 
 Discovery has two layers with distinct roles: **DNS locates, HTTPS describes**.
@@ -266,13 +323,12 @@ Having resolved a target, the discovering party fetches
 {
   "ewp": "0.1",
   "versions": ["0.1"],
-  "capabilities": ["urn:ework:core", "urn:ework:e2ee"],
+  "capabilities": ["urn:ework:core", "urn:ework:e2ee", "urn:ework:payments"],
   "addressDomain": "example.com",
   "clientApi": "https://ework.example.com/ework/v1",
   "federationInbox": "https://ework.example.com/ework/v1/inbox",
   "web": "https://ework.example.com",
   "hostKey": "ed25519:mB5c...",
-  "securityContact": "security@example.com",
   "delegatedFrom": "example.com",
   "software": { "name": "ework-host", "version": "0.1.28" }
 }
@@ -283,6 +339,23 @@ Having resolved a target, the discovering party fetches
 from `addressDomain`. That difference is **delegation**, and it is the same
 mechanism by which an MX record points elsewhere: addresses stay at
 `person@example.com` while the service runs at `ework.example.com`.
+
+`securityContact` is optional and says where to report a flaw in that host. The
+value MUST be a URI, in one of two forms: `mailto:` for a box that actually
+receives, or `https:` for a reporting page, which serves equally well and does
+not depend on mail.
+
+~~~
+"securityContact": "mailto:security@example.org"
+"securityContact": "https://example.org/security"
+~~~
+
+Implementations MUST NOT derive the value from the domain, and MUST NOT publish
+it by default: a guessed contact is a promise nobody made, and a security
+channel that bounces is worse than its absence, because whoever found the flaw
+tries once and gives up, or publishes without warning. Absent means "this host
+declares no channel", which is honest, and is why the example document above
+does not carry the field.
 
 `software` is optional and identifies the implementation. Publishing it has a
 real cost, in that it tells anyone looking which known defect to try, and a
@@ -317,12 +390,40 @@ which by definition lives at the address domain.
 
 ## Trust
 
-Authenticity does not come from DNS. It comes from TLS {{RFC8446}} at the
-target, plus the transport signature with `hostKey`, plus the author signature
-inside the object. A poisoned SRV leads to a host that cannot produce a valid
-signature for the sender it claims to represent, so the attack fails at
-validation rather than at resolution. DNSSEC improves the situation and is NOT
-a requirement.
+Authenticity does not come from DNS. It comes from TLS {{RFC8446}} at the target,
+the delegation proof below, the transport signature with `hostKey`, and the author
+signature inside the object.
+
+For **outbound** traffic, a poisoned SRV leads to a host that cannot produce a
+valid signature for the sender it claims to represent, so the attack fails at
+validation rather than at resolution. For **inbound** traffic that argument does
+not hold, because the attacker need sign nothing in anyone's name: what it wants is
+to receive.
+
+**Delegation MUST be proved, not declared.** Checking `addressDomain` alone proves
+nothing, because the target declares it about itself. Where the target is not the
+address domain itself:
+
+- The address domain publishes a delegation key in DNS, as a TXT record at
+  `_ework.<domain>`.
+- `delegatedFrom` MUST carry an object signed by that key, covering the tuple
+  (`addressDomain`, target name, `hostKey`, validity).
+- Discovering parties MUST validate that proof before using `clientApi`,
+  `federationInbox` or `hostKey`, and MUST reject a document whose `addressDomain`
+  differs from the target's own domain without a valid proof.
+- A change of `hostKey` for an already known domain MUST be treated as suspicious
+  and surfaced. This is trust on first use, and it costs little because changing
+  host is rare and deliberate.
+
+Without the proof, whoever controls DNS publishes an SRV pointing at itself, serves
+`.well-known` under a legitimate certificate for its own name, declares someone
+else's `addressDomain`, and the check passes. It becomes the destination: it
+receives all inbound correspondence for the domain, reads `consent.request` bodies
+in the clear, and may answer `unknown-recipient`, a permanent error that makes
+senders give up for good. The `hostKey` anchoring the transport signature comes
+from this same document, so that defence was bootstrapped by whatever the attacker
+served. DNSSEC improves the situation and is NOT a requirement, which is precisely
+why the defence cannot depend on it.
 
 Results SHOULD be cached respecting the SRV TTL and, for the document, a
 reasonable TTL, with 24 hours RECOMMENDED.
@@ -359,13 +460,73 @@ explicit indication of whether retrying can succeed.
 | `no-consent` | no | No valid grant for this address |
 | `consent-revoked` | no | Grant existed and was revoked |
 | `malformed` | no | Envelope failed validation |
+| `unauthorized` | no | Caller lacks authority for the call or the resource |
+| `unsupported-version` | no | Protocol version not implemented |
 | `too-large` | no | Above the advertised limit |
 | `over-rate` | yes | Rate limit, with `retryAfter` |
-| `unavailable` | yes | Transient host failure |
+| `server-error` | yes | Internal failure at the host |
+| `try-later` | yes | Temporary refusal, with `retryAfter` |
 
 A host MUST NOT discard an envelope silently. Refusal is always explicit, with a
 code. Silent discard is indistinguishable from loss, and a sender that cannot
 tell the two apart will retry forever or give up wrongly.
+
+# Registered Capabilities
+
+`capabilities` is what a host declares it knows how to do, and the discovery
+document carries it. What was missing was the list of values that exist, and
+the absence already produced the predictable effect: the reference
+implementation advertises `urn:ework:assisted`, which appears in no
+specification, and a client that wanted to decide anything from it would be
+deciding on a value nobody registered.
+
+The vocabulary is **closed**, with extension through a party's own namespace,
+for the same reason as the relationship types of the data model document and
+the consent purposes of the consent document: a capability invented by each
+implementation is a capability no client can interpret, and then the field
+becomes decoration.
+
+| URN | What it declares |
+|---|---|
+| `urn:ework:core` | The core: envelopes, tasks, consent, federation. Every host MUST advertise it. |
+| `urn:ework:e2ee` | End-to-end boxes, see the cryptography document. The host stores and routes without being able to read. |
+| `urn:ework:assisted` | Assisted mode: the host receives content in the clear and MAY read it. |
+| `urn:ework:payments` | Payment payloads, see the payloads document. |
+| `urn:ework:compose` | The host reads free text and proposes a structured task from it. |
+
+`urn:ework:e2ee` and `urn:ework:assisted` describe boxes, and a host MAY
+advertise both: the box decides, and the session's `mode` field, in the
+synchronisation document, says which one applies to each box.
+
+**`urn:ework:compose` depends on `urn:ework:assisted`, and the dependency is
+not an implementation choice: it is arithmetic.** Reading free text requires
+seeing the text, and in an end-to-end box the host does not see it. A host that
+advertises `compose` without `assisted` is declaring the impossible, and
+clients MUST treat that combination as the absence of `compose`.
+
+This changes what the interface should say when the feature is not there. "This
+server does not offer it" describes a limitation of the operator; in the
+end-to-end box the honest sentence is a different one, and it is the thesis of
+the protocol: **it is not here because only you can read what is here.**
+Clients MUST NOT present the manual path as degradation: it is the path, and
+the other one is the convenience traded for letting the server read.
+
+Extensions use a party's own namespace (`urn:example.com:reports`), never
+`urn:ework:` with a new name. An unknown capability MUST be ignored, and never
+treated as an error: that is how a newer host talks to an older client.
+
+# Conformance Profiles
+
+- **Client:** this document, the data model document, the identity document
+  (client side), and the synchronisation document; end-to-end encryption (the
+  cryptography document) SHOULD.
+- **Host:** this document, the identity document (discovery and proof), the
+  synchronisation document, and the federation document; the consent edge of
+  the consent document MUST.
+- **Issuer gateway:** this document, the identity document (organization
+  identity), the federation document, and the consent document.
+
+An implementer MUST publish which capabilities (`urn:ework:*`) it supports.
 
 # Security Considerations
 
@@ -408,9 +569,11 @@ capability MUST be the one issued for that relationship.
 
 In assisted mode the host reads content. In end-to-end encrypted mode it does
 not, but it still observes: which addresses exchange envelopes, when, how large,
-and how often. Padding to size classes reduces the size channel. The remaining
-channels are inherent to any store-and-forward system and are documented rather
-than denied.
+and how often. The routing header is the metadata hosts see; its list is closed
+and short on purpose, and any new header field requires a privacy review.
+`urgencyHint` is the only content field that can leak in the clear, and only by
+the user's choice. Padding to size classes reduces the size channel. The remaining channels are
+inherent to any store-and-forward system and are documented rather than denied.
 
 # IANA Considerations
 
@@ -448,6 +611,18 @@ record, with 443 expected in practice.
 IANA is requested to register `application/ework+json` in the "Media Types"
 registry, with encoding considerations of binary, security considerations as in
 this document, and this document as the reference.
+
+# Open Questions
+
+This section records unresolved points and is to be removed before publication
+as an RFC.
+
+1. Freeze `ework:` as the URI scheme, or use `web+ework:`? The answer depends
+   on the final name of the protocol.
+2. Normative envelope size limits (proposal: 256 KiB of body; above that, a
+   blob).
+3. CBOR already in version 0.1, or deferred until a real measurement shows the
+   gain?
 
 # Implementation Status
 

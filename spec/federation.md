@@ -30,7 +30,8 @@ reaches a box.
 # Delivery
 
 Delivery is an HTTP POST {{RFC9110}} over TLS {{RFC8446}} to the destination
-host's `federationInbox`, discovered as specified in the core document.
+host's `federationInbox`, discovered as specified in the core document. A POST
+MAY carry more than one envelope, up to the destination's `maxCallsPerBatch`.
 
 ~~~
 POST /ework/v1/inbox HTTP/2
@@ -76,15 +77,51 @@ Before an envelope reaches a box, the receiving host MUST check, in this order:
 The only envelope type accepted without a prior relationship is
 `consent.request`, which is quarantined rather than delivered.
 
+**Every other type, from an identity with no prior relationship, MUST receive the
+same response as a nonexistent address:** `unknown-recipient`, permanent, identical
+in code, body and timing. The `no-consent` code MUST be used only where the sender
+already holds a capability issued for that address, meaning the relationship
+existed and it is the scope or its state that fails, and never before the
+capability has been compared.
+
+While `no-consent` answered a sender who never had a relationship, it separated a
+live address from a dead one at one request per guess. An oracle is a property of
+the set of responses, and one careless endpoint annuls the equality every other
+endpoint maintains.
+
+**Replacing a pending knock MUST NOT silently widen scope.** A resend whose
+declared scope differs from the pending request MUST reset the read state, and
+clients MUST present it as new, saying what changed. Otherwise an issuer sends a
+modest scope, waits for the person to read it and defer the decision, and swaps in
+a wide scope before acceptance: what they accept is not what they read.
+
 Project membership is an additional basis, specified in the compartments
 document: a task belonging to a project circle is authorised by the recipient's
 membership in that circle rather than by a relationship capability, because such
-a task arrives addressed to the principal handle, which has no capability bound
+a task arrives addressed to the primary handle, which has no capability bound
 to it. This is not a hole: the membership exists only because the recipient
 accepted a `project.invite`, and that invitation passed through the ordinary
 consent path.
 
+# Contact Key Delivery
+
+The `consent.grant` MUST carry the public contact key of that relationship, with a
+proof binding it to the consent, and the counterparty MUST reject a relationship
+group credential that does not match the key received there. Implementations MUST
+NOT accept mere delivery by the routing host as proof of the other side's
+identity.
+
+Contact keys are deliberately absent from the public identity document, so this
+directed delivery at grant time is the only path that authenticates one without
+publishing it. Without it, the only thing attesting who sat on the other side of
+the relationship group was the host, which is exactly the party the design means
+to exclude: it would present its own key as the user's and sit permanently in the
+middle of the channel carrying invoices, payment slips and test results.
+
 # Retry
+
+An accepted delivery is answered with `202` and `{ "accepted": ["<id>"] }`.
+Acceptance means "persisted and queued for the recipient", not "read".
 
 Delivery failures divide into two classes, and treating them alike wastes both
 parties' resources.
@@ -92,8 +129,8 @@ parties' resources.
 **Permanent.** `no-consent`, `consent-revoked`, `unknown-recipient`,
 `malformed`, `too-large`. The sending host MUST NOT retry.
 
-**Transient.** `over-rate`, `unavailable`, connection failures, 5xx. The sending
-host MUST retry on the schedule below.
+**Transient.** `over-rate`, `try-later`, `server-error`, connection failures,
+5xx. The sending host MUST retry on the schedule below.
 
 | Attempt | Wait before it |
 |---|---|
@@ -110,8 +147,23 @@ not after a count of attempts. Age is the correct bound because attempts are not
 uniformly spaced: counting them makes the effective deadline depend on how many
 retries happened to fit, which varies with the failure pattern.
 
-On giving up, the host MUST inform the originating identity. A delivery that
-silently ceases is indistinguishable from one that succeeded.
+The schedule's parameters are adjustable upward, never downward. Idempotency by
+envelope `id` makes retries safe.
+
+On returning from an outage longer than the retry window, a receiving host MUST
+query the hosts it held current relationships with for envelopes discarded during
+the period, and originating hosts MUST retain, for 30 days after giving up, the
+list of envelope identifiers they abandoned per recipient. Clients MUST show the
+recipient what was lost, with sender and time, even without the content.
+
+Three days of unavailability are cheap to cause against a self-hoster, which is
+this protocol's reference deployment, and happen unaided during a holiday. Without
+reconciliation each issuer knew of the failure and the recipient never knew the
+task had existed, which for a critical reminder is silent loss rather than delay.
+
+On giving up, the host MUST inform the originating identity, as a local
+`receipt.failed` envelope. A delivery that silently ceases is indistinguishable
+from one that succeeded.
 
 `over-rate` carries `retryAfter`, and the sending host SHOULD honour it in
 preference to the schedule above.
@@ -159,7 +211,21 @@ The receiving host MUST verify the hash of what arrives. This is the only thing
 preventing the origin from substituting a different file for the one the task
 references.
 
+A push alternative, in which the origin sends a PUT alongside the delivery, MAY
+be negotiated.
+
 Binary crosses federation raw, without re-encoding.
+
+# Fan-out and Groups
+
+An envelope with multiple `to` addresses is delivered once per destination
+host, grouping recipients served by the same host.
+
+For MLS group messages (`group.commit`, `group.welcome`, `group.proposal`,
+`group.message`), the sender sends the ciphertext once to its own host, which
+replicates it to the hosts of every member; each host delivers to its own.
+Hosts route from group to members using the routing list maintained by the
+membership envelopes, and never read content.
 
 # Anti-Abuse Minimum
 
@@ -168,6 +234,8 @@ A conforming host MUST implement:
 - **Rate limiting by origin domain** for `consent.request`, not by IP address.
   In federation what matters is who is sending, and the address is commonly a
   shared proxy.
+- **Rate limiting per pair**, issuer to recipient, for general traffic,
+  answered with `over-rate` and `retryAfter`.
 - **Explicit refusal.** Never silent discard. A sender that cannot distinguish a
   limit from a loss will either retry forever or give up wrongly.
 - **Envelope size enforcement matching the advertised limit.** Advertising one
@@ -175,6 +243,13 @@ A conforming host MUST implement:
   diagnose.
 - **Deduplication by `dedupKey`** so that redelivery of a series updates rather
   than accumulates.
+- **Abuse reporting.** A `report.abuse` envelope from the user to their own
+  host, forwardable to the origin host; reputation semantics stay outside the
+  core (pluggable).
+
+Hosts MAY apply pre-delivery policy filters (shareable lists, in the spirit of
+Matrix policy servers), but MUST NOT discard silently: an explicit error,
+always.
 
 # Security Considerations
 
@@ -205,3 +280,11 @@ documented rather than denied.
 Per-relationship addressing means a host learns only the addresses it routes.
 An identity distributing its addresses across several hosts partitions that
 knowledge, at the cost of key and document management across hosts.
+
+# Open Questions
+
+1. Direct host-to-host delivery of `urgency: critical` over a dedicated channel
+   (a priority queue), or is the same queue with `urgencyHint` enough?
+2. Live migration: the window in which two hosts serve the same identity, and
+   the duplicate rules.
+3. The format of `report.abuse` and the interoperable minimum of moderation.

@@ -65,9 +65,10 @@ recipient on demand and produce no notification.
 {
   "@type": "Consent",
   "uid": "019f3c00-9d2a-7c31-b5f2-0d1a44e0c9a7",
-  "user": "did:key:z6MkCleia...",
+  "user": "contact:z6MkK7f3a2q9...",
   "alias": "k7f3a2q9@ework.example",
   "issuer": "billing@utility.example",
+  "issuerDept": "billing",
   "scope": {
     "purposes": ["billing"],
     "payloadTypes": ["ework.dev/payload/payment@1"],
@@ -77,9 +78,10 @@ recipient on demand and produce no notification.
     "regulatoryProfile": "br-lgpd@1"
   },
   "statusPolicy": "receipt",
-  "grantedAt": "2026-08-04T11:58:00Z",
-  "expiresAt": null,
+  "createdAt": "2026-08-04T11:58:00Z",
+  "validUntil": null,
   "state": "granted",
+  "stateHistory": [ { "state": "requested", "at": "..." }, { "state": "granted", "at": "..." } ],
   "proof": { "type": "ed25519-jcs-2026", "by": "did:key:z6MkCleia...", "sig": "..." }
 }
 ~~~
@@ -87,6 +89,12 @@ recipient on demand and produce no notification.
 The object is signed by the recipient, not by the host. A host that could forge
 a grant could authorise delivery to its own users, which would make the whole
 mechanism decorative.
+
+A consent moves from `requested` to `granted`, may alternate between `granted`
+and `paused`, and ends in `revoked`; `expired` is reached when `validUntil`
+passes. Transitions to `granted`, `paused`, and `revoked` are acts of the
+recipient, signed by the recipient's identity. **Revoking MUST be as simple in
+the UI as granting**, and the effect at the edge is immediate.
 
 ## Scope
 
@@ -102,6 +110,12 @@ mechanism decorative.
 Scope fields that the receiving host enforces MUST be checked at the edge.
 Scope fields that only the client can evaluate MUST be presented to the
 recipient before the grant is made, not after.
+
+`maxPerWeek` MAY replace `maxPerMonth` where the series runs on a weekly
+rhythm; either way it is a rate the recipient's host applies at the edge.
+
+A `maxUrgency` above `normal` requires explicit mention on the granting screen,
+and `critical` requires a screen of its own, as the urgency document specifies.
 
 `regulatoryProfile` is a declaration by the issuer about itself. A host MUST
 NOT present an unregistered profile identifier as if it carried meaning. An
@@ -119,7 +133,9 @@ borrow a credibility it has not earned.
 | `milestones` | The above, plus completion, failure, or cancellation |
 | `full` | The above, plus progress and comments directed at the issuer |
 
-The protocol default is `receipt`.
+The protocol default is `receipt`. Status beyond the configured level MUST NOT
+leave the recipient's host: the filter runs in the client, because the content
+is end-to-end encrypted, and is checked again at the edge.
 
 A task MAY carry `statusSharing`, which narrows the level for that task alone.
 **The effective level is the lower of the two, and implementations MUST compute
@@ -157,6 +173,11 @@ available: `consent.request`.
 }
 ~~~
 
+The body is short and plain: the issuer's verified identity, the requested
+scope, a brief purpose text, and a static sample of what would be sent. A
+`consent.request` MUST NOT contain a real payload, a payment link, or an
+attachment.
+
 The receiving host MUST place the request in quarantine and MUST NOT generate a
 notification. Quarantine is visible on demand; it does not interrupt. A
 mechanism whose purpose is to protect attention cannot itself demand attention
@@ -164,6 +185,30 @@ on arrival.
 
 The host MUST replace any earlier quarantined request from the same issuer
 rather than accumulate them, so that repeated knocking gains the issuer nothing.
+A request left unanswered expires after 90 days.
+
+## Knocking again from inside
+
+**A knock from an issuer that already holds a live relationship is a REVISION
+request for that relationship, not a new one.** Hosts MUST NOT create a second
+consent for the same issuer: the per-relationship address exists so that a leak
+says where it came from, and two relationships with one issuer make the border
+enforce two agreements in parallel, adding their quotas together. The
+one-pending rule above governs concurrency, not accumulation: without this
+rule, knocking again each month would double the ceiling, counting on the
+distracted yes of someone looking at two identical cards.
+
+Accepting the revision replaces the scope of the existing consent, **keeps the
+address**, and issues a new capability. The newly requested scope becomes the
+ceiling from then on, upward or downward: the issuer asked for it, and that is
+what a ceiling records.
+
+**Declining a revision ends nothing.** The agreement already in force stays in
+force, and the issuer may keep sending within it. That is what separates this
+refusal from the first one: refusing someone who never came in keeps the door
+shut, while refusing someone already inside merely says no to asking for more.
+Clients MUST make that explicit, because the word "decline" on its own suggests
+the wrong consequence.
 
 ## Rate limits on knocking
 
@@ -173,6 +218,100 @@ commonly a shared proxy.
 
 Refusal MUST be explicit, carrying `over-rate` and `retryAfter`. Silent discard
 would leave the sender unable to distinguish a limit from a loss.
+
+## Knocking between people
+
+The same knock serves when first contact goes from a person to a public handle:
+the self-employed installer inviting a client. It travels as a
+`consent.request` from a personal identity, MAY carry the context of a project
+invitation, and lands in the same quarantine, under the same rules of silence,
+limit, and expiry.
+
+Acceptance establishes the contact relationship, with an MLS group of its own
+and the `Relation` object described below, and issues no sending capability:
+capabilities remain a thing for organisations. The real `project.invite` flows
+after the acceptance.
+
+# The In-Person Offer
+
+The URI `ework:consent-offer/<payload>` carries, in unpadded base64url, a
+`consent.offer` envelope. It is the counter path: presented as a QR code or a
+link at the moment of signing up, on the printed bill, at the desk. The person
+went looking for it, so the acceptance is born `granted` and never passes
+through quarantine: quarantine protects from those who arrive uninvited, and
+here the trust already exists in the physical world.
+
+The offer is issued by the issuer's host at the request of an organisation
+identity, and MUST NOT be signed by an account key: readers verify it against
+the domain's published `hostKey`, and a signature by any other key produces an
+offer the protocol itself says to refuse.
+
+`to` is empty: the offer is bearer by nature, because whoever presents it does
+not know the address of whoever will read it. That is what makes it useful at
+the counter, and what makes it dangerous. The rules below exist because of that
+trade.
+
+Clients MUST, before showing any accept button:
+
+1. **Verify the signature against the key the `from` domain publishes** as
+   `hostKey` in discovery. It is the issuer's host that issues and signs the
+   offer, with the domain's published key: that is what lets any reader verify
+   by consulting only discovery, which is public by design and tells nobody who
+   has an account where. An offer whose key is not the one published by the
+   domain MUST be refused, not merely flagged.
+2. **Show the verified domain**, not the `name`. The name is written by whoever
+   produced the QR; the domain is what the signature proves. A screen that
+   displays "Acme Energy" in large type with the domain in small print hands
+   the attack over for free: all it takes is a QR pasted over the original at
+   the counter.
+3. **Refuse an expired offer.** `expiresAt` is mandatory and MUST NOT exceed 30
+   days, because a printed QR outlives the contract that justified it.
+4. **Show the whole scope** before acceptance, in the same words as the
+   quarantine screen. The in-person path is faster, and cannot be less
+   informed.
+
+Hosts MUST apply the same checks when receiving the acceptance, and MUST NOT
+trust the verification done by the client: a modified client is precisely the
+case that verification exists to cover.
+
+# Declining a Request: Discard and Block
+
+The sections above say what happens when a request is accepted, and were silent
+about the more frequent path, which is the other one. Declining has two forms,
+opposite in reversibility and identical in silence.
+
+**Discard** takes the request out of the box and SHOULD keep it recoverable for
+a period, 30 days as the recommended term, after which it disappears. It is the
+default, and it exists because declining by mistake is the common error: a list
+of silent requests is exactly where a tap misses its target, and without a way
+back the person is left depending on the issuer knocking again, with the issuer
+having no signal that it should.
+
+**Block** is explicit and permanent. Knocks from that issuer MUST be discarded
+on arrival, without entering quarantine. It is the answer to someone who
+insists, and it MUST NOT be the default: blocking someone who merely got the
+address wrong is a cost the person should not pay for a mistaken tap.
+
+**The response to the issuer MUST be identical in all four cases**: request
+discarded, issuer blocked, nonexistent address, and account that never existed.
+It is the same `unknown-recipient` as everywhere else, and the equality is not
+code economy: a differentiated response teaches whoever knocks that the account
+exists, that somebody read, and that the address belongs to a person. A block
+that announces itself is an oracle, and the property that per-relationship
+addressing exists to protect dies with it.
+
+Implementations MUST NOT notify anyone on either action, nor on unblocking. The
+protocol produces read receipts nowhere, and this is not the place to open an
+exception.
+
+The block list SHOULD be visible and reversible for whoever blocked. A list
+that cannot be seen is a list that decides on its own, and the day to unblock
+is precisely the day nobody remembers having blocked.
+
+None of this travels: discard and block are local state of the recipient. A
+host that implements them differently, or not at all, remains interoperable,
+because whoever knocks cannot tell the difference. That is the requirement, and
+the only one.
 
 # Granting
 
@@ -185,8 +324,35 @@ On granting, the recipient's client:
 4. Sends `consent.grant` to the issuer.
 
 The grant is sent **from the newly created address**, not from the recipient's
-principal handle. This prevents an issuer from learning the principal handle
+primary handle. This prevents an issuer from learning the primary handle
 merely because contact was accepted.
+
+## Revising the terms without ending the relationship
+
+Granting again is also how a live agreement is **tightened**, not only how a
+capability is rotated. Without it, changing one's mind about scope had only the
+path that ends everything: someone who wanted to keep receiving the bill and
+stop accepting rescheduling had to cut the whole relationship and wait for the
+issuer to knock again.
+
+**The permanent ceiling is the scope originally REQUESTED, not the one
+granted.** Below it the recipient moves freely in both directions: tightening
+after granting broadly is the common case, and loosening back up to what was
+asked creates no authorisation the issuer had not already requested. Above it,
+never: granting what nobody asked for invents permission the recipient has no
+way to evaluate, because there was no request to read. Hosts MUST therefore
+retain the requested scope alongside the granted one.
+
+**Revision issues a new capability and the issuer is told**, with the revised
+consent and the replacement capability, by the same path as the original grant.
+This is not an exception to the protocol's silence: the issuer already knows
+the relationship exists, the border would already answer its first out-of-scope
+send with a refusal, and letting it find out by trial would turn a legitimate
+tightening into blind debugging. Whoever wants the other side to know nothing
+has the silent retirement path, which is where silence lives.
+
+The previous capability dies immediately, by `scopeHash`: it describes an
+agreement that no longer holds.
 
 That choice has a consequence the specification must handle. The knocking party
 receives a grant arriving from an opaque identifier and has no way, on its own,
@@ -226,9 +392,78 @@ relationship addresses, MUST also refuse `consent.request`. This is what makes a
 scraped address worthless: without a capability it delivers nothing, and with
 this flag it does not even accept a knock.
 
+## The issuer never learns the root
+
+`user`, and the signer in `proofs`, identify the person by that relationship's
+**contact key**, in the form `contact:<multibase>`, with the signature produced by
+that key. Implementations MUST NOT place the root `did:key` in the consent object,
+in the capability, or in an entry addressed to the issuer.
+
+The root `did:key` is global, stable, and by design does not rotate day to day.
+While it travelled in those three objects, two issuers comparing records knew they
+were talking to the same person, and the per-relationship address protected
+nothing: the object the relationship creates undid the guarantee the relationship
+existed to provide.
+
+The cost is real and worth stating: the issuer can no longer prove to a third party
+which global identity accepted. Dispute and audit rest on the relationship rather
+than on the person, which suffices for billing, because what is disputed is the
+contractual relationship and that is exactly what the contact key identifies.
+
+# Series and Deduplication
+
+`dedupKey`, chosen by the issuer, opaque, and stable per logical series, for
+example `bill-<period>-<customer>`, carries semantics:
+
+- A new offer with a `dedupKey` already seen, while the task is open, is a
+  **revision**, equivalent to the `update` action: the reissued bill, the
+  rescheduled visit. It is presented as an update, not as a new task.
+- A revision MUST require fresh explicit acceptance when it alters the amount,
+  the due date, the beneficiary, **or any payment-instrument field**.
+  Registered payloads MUST declare which of their fields are immutable within a
+  series.
+
+  The earlier trigger was only "amount or due date changed for the worse", and
+  it let through exactly the fields the person uses to pay. Swapping only the
+  instrument kept amount, due date, and holder intact, fired nothing, and
+  entered as an update to a task already checked and accepted. Changing the
+  instrument counts as a change for the worse by definition, because the money
+  starts going somewhere else.
+- A completed or cancelled task, plus the same `dedupKey` in a new billing
+  period, is a new task of the series, September's bill after August's,
+  inheriting the `next` relation from the previous one.
+- An identical resend, with the same envelope `id`, is discarded by
+  idempotency.
+
 # Ending a Relationship
 
-Two paths exist, and both exist for good reasons.
+Three paths exist, and each exists for a reason.
+
+**Ending a relationship between people.** A person-to-person relationship creates
+no consent object, so neither path below reached it, and it was left with no
+specified way out at all. Every acceptance of a personal relationship MUST create a
+`Relation` object holding `peer`, `alias`, `maxUrgency`, `escalation` and `state`.
+A `relation.revoke` signed by whoever accepted ends it, with immediate effect at the
+edge and a Remove from that relationship's MLS group, after which the host MUST
+answer that peer exactly as it would a nonexistent address. Ending is silent, like
+blocking.
+
+`escalation` says whether this person MAY name you as their escalation contact.
+It starts **false**, and only whoever accepted the relationship raises it, by the
+same principle as `maxUrgency`: whoever bears the consequence decides. The two are
+separate on purpose, because one means "may wake me" and the other means "may wake
+me on someone else's behalf".
+
+Whoever revokes MAY, in the same act, generate a dedicated contact address for
+future personal relationships, so as not to depend on the primary handle.
+Clients SHOULD offer this to someone revoking because of harassment.
+
+Retiring the address does not substitute for this: people invited personally use
+the primary handle, so retiring it would sever every personal relationship at once
+and break the handle proof. The adversary here is the ex-partner and the harasser,
+and the protocol was offering them a channel with no off switch.
+
+The two paths for issuers:
 
 **Polite revocation** (`consent.revoke`): the issuer is informed, stops sending,
 and the relationship can be resumed later. This is the normal path with a
@@ -250,6 +485,17 @@ Silent retirement composes with address rotation, specified in the identity
 document: rotating all addresses while carrying forward only selected
 relationships accomplishes, in one operation, what unsubscribing from each
 counterparty individually cannot.
+
+# Issuer Duties
+
+The general list of issuer duties lives in the anti-abuse document. Two belong
+here, because they are about the consent relationship itself:
+
+- **Respect scope and rate.** Violations produce `over-rate` and `no-consent`,
+  and they are a signal to the recipient, not only an error to the issuer:
+  clients SHOULD suggest revocation when they occur.
+- **Honour a `decline` of a recurring series by offering to end it.** Three
+  declines in a row SHOULD trigger a `consent.pause` suggested to the user.
 
 # Security Considerations
 
@@ -281,6 +527,17 @@ measuring attacker economics delivered 119 of 300 tasks into a victim's box
 using an invented string. The property that a harvested address is worthless
 without the capability was absent for as long as that check was a presence test.
 
+Two further requirements came out of the same measurement:
+
+1. **Comparison in constant time.** Returning at the first differing byte makes
+   the time to refusal depend on how many leading bytes the guess got right,
+   and a bearer credential recovered byte by byte costs sixteen guesses per
+   position.
+2. **Never comparison by substring.** A query with `LIKE '%value%'` makes a
+   one-character credential match any credential that contains it, and becomes
+   an oracle: it answers "is there a live credential with this sequence?" and
+   lets the credential be rebuilt piece by piece.
+
 Refusal MUST return the same error as a nonexistent relationship. Distinguishing
 a wrong capability from an absent relationship tells a prober that the address is
 live.
@@ -303,11 +560,39 @@ address, so two issuers cannot determine that they are talking to the same
 person without out-of-band information. This is the property that undermines the
 data-broker practice of cross-referencing databases by shared identifier.
 
+# Open Questions
+
+1. Delegated consent, the adult child managing an elderly parent's consents,
+   depends on the management delegation left open in the identity document.
+2. Transfer of issuer ownership, a company merger or a domain change, needs a
+   chain of continuity proofs.
+3. Whether the `receipt` level includes the reason for a refusal. The proposal
+   is that refusal is always without a reason by default.
+4. Blocking an identity that already holds a granted relationship through
+   another address. The provisional reading is that blocking does not cut what
+   was already granted, because cutting is a different action with a different
+   consequence, and mixing the two would make one tap do two things. What
+   remains open is whether the interface should offer both together in that
+   case.
+5. **In which field the offer's purpose travels.** The anti-abuse document
+   requires every offer to declare the purpose it was sent under, and calls
+   sending outside it a violation, not a grey area. No document defines where
+   the purpose goes: the origin block in the data model document carries
+   `issuer`, `consent`, `offeredAt`, and `envelope`, and not the purpose.
+   Without the field, the edge can enforce payload type, urgency ceiling, and
+   volume, but not `purposes`, which is exactly the item the conformance rule
+   calls a violation and not a grey area. The proposal is
+   `ework:origin.purpose`, a string from the registered vocabulary, mandatory
+   when the consent declares more than one purpose. It stays open because it
+   touches the data model, and deserves deciding together with whether the
+   purpose also enters the capability's signature, the `scopeHash`.
+
 # IANA Considerations
 
 This document requests the creation of a registry, "EWP Consent Purposes", with
 Specification Required as the registration policy, initially containing
-`billing`, `appointment`, `delivery`, `document-review`, and `incident`.
+`billing`, `scheduling`, `delivery`, `service-order`, `legal-notice`, and
+`document-renewal`.
 
 Purposes outside the registry remain usable as free-form strings. The registry
 exists so that clients can present familiar purposes consistently, not to

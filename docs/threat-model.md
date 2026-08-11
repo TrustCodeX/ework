@@ -1,6 +1,6 @@
 # Threat model
 
-Initial draft (2026-08-04). It must be reviewed on every change to RFCs 0005, 0006 and 0007.
+Initial draft (2026-08-04), revised on 2026-08-08 after the adversarial review recorded in [08-revisao-de-seguranca.md](security-review.md). It must be reviewed on every change to RFCs 0005, 0006 and 0007.
 
 ## 1. Assets to protect
 
@@ -37,7 +37,7 @@ Residual: whatever the device had already decrypted locally before revocation.
 
 ### A6. A member removed from a project
 A former supplier tries to keep reading the project.
-Mitigation: an MLS Remove creates a new epoch; they open nothing from that point on. What they saw while a member, they saw (knowledge cannot be revoked).
+Mitigation: an MLS Remove creates a new epoch; they open nothing from that point on. What they saw while a member, they saw (knowledge cannot be revoked). RFC 0013 §7 now requires the removal to be executed as a Remove in the group, forbids presenting the departure as done before the commit, and mandates treating the tree as authoritative when it diverges from the `Project` list: taking the name off the list was the natural action in the interface, and the only one that took away nobody's key.
 
 ### A7. Total loss of devices
 The user loses everything and does not have the recovery kit.
@@ -68,7 +68,7 @@ Mitigation: absence of an oracle (RFC 0003 §7.4, RFC 0011 §4.2). An identical 
 
 ### A13. Directory enumeration
 An attacker sweeps the phone number space to build a list of who has an account, which is the raw material of targeted fraud.
-Structural mitigation: no lookup returns an address (RFC 0012 §3). Enumerating produces only consent requests thrown into the void, with a quota, a verified requester identity and a record visible to the target. Equality of response includes latency, and implementations MUST test that.
+Structural mitigation: no lookup returns an address (RFC 0012 §3). Enumerating produces only consent requests thrown into the void, with a quota, a verified requester identity and a record visible to the target. Equality of response includes latency, and implementations MUST test that. The handle proof no longer returns the `did:key` to whoever presents only the name (RFC 0003 §3.1): it answers with a confirmation to whoever already knows the target, because returning the key made it a public oracle of account existence, and every hit handed over, through the identity document, all of the person's handles and hosts.
 Residual: the attacker learns, at most, that they spent their quota. If the target has `allow: "anyone"` switched on, they receive a request in quarantine, which is noise, not exposure.
 
 ### A14. A compromised directory
@@ -109,7 +109,7 @@ Mitigations: there is no cryptography against inattention. Only design: prominen
 
 ### A22. An actor lying about its class
 An identity declares as human a key that is in fact inside a robot.
-Mitigation: the protocol does not prevent it, but the declaration is signed by the root, so the lie is attributable and provable after the fact. Human presence attestation in an enclave remains a possible extension for high risk (RFC 0014, open question 1).
+Mitigation: receivers MUST resolve the key in the identity document and use exclusively the class signed by the root, and a divergence from the class declared in the entry renders the entry without effect (RFC 0014 §4, RFC 0015 §1). Before that the distinction was declarative: the agent wrote `actorClass: "human"` in its own entry, signed it with its own key, and the only written rule said to display the field. It remains true that the root can lie when declaring a key's class, and then the lie is attributable. Human presence attestation in an enclave remains a possible extension for high risk (RFC 0014, open question 1).
 
 ### A23. A comment to the wrong audience
 The person writes "I will pay when my salary lands" thinking it is a private note, and sends it to the issuer.
@@ -131,7 +131,7 @@ Mitigations: channel redundancy in escalation (push plus the device's local soun
 ### A27. Rollback of the identity document
 A host serves an old document in which a revoked device still appears, and an out-of-date peer accepts it.
 Mitigations: a periodic freshness proof signed by a current device, and gossip of (id, seq) between peers inside the existing MLS groups (RFC 0003 §2); whoever learns a higher seq refuses earlier documents from then on.
-Residual: whoever shares no group at all with the identity remains deceivable until the freshness proof expires. Key transparency is the recorded evolution for closing that remainder.
+Residual: whoever shares no group at all with the identity remains deceivable until the freshness proof expires. Key transparency is the recorded evolution for closing that remainder. Since the review, every key in the document carries `validFrom` and `validUntil` and revocation fills in the end instead of deleting the entry (RFC 0003 §2), which closes both sides of the problem: an old legitimate signature remains verifiable, and a revoked key stops being accepted by whoever only holds the current document.
 
 ### A28. Harvest now, decrypt later
 An adversary records ciphertext today to decrypt it once there is a useful quantum computer.
@@ -140,6 +140,28 @@ Mitigation: declared cryptographic agility and a hybrid ciphersuite (ML-KEM with
 ### A29. Coerced deletion, or deletion with a stolen kit
 Someone with the recovery kit (or coercing the account holder) requests deletion of the account in order to destroy evidence or cause harm.
 Mitigations: a grace window with the account frozen, a notice on every device and cancellation from any verified device (RFC 0016 §5); the window CANNOT be shortened remotely.
+
+### A30. A legitimate participant signing another's transition
+Inside a group they belong to by right, a participant signs another's action: the issuer signs `accept` on its own offer and produces a signed record that the charge was accepted, the supplier signs `complete` to unblock its own delivery, someone signs `reassign`, `cancel` or `update` on somebody else's task.
+Mitigation: authority per action (RFC 0015 §2.2, ADR-0021). The peer resolves the author in the `participants` and checks the role before applying the effect; an action without authority becomes an entry without effect, which stays written and does not count. Found in the review of 2026-08-08, and it is the finding that changed the specification the most: the flaw was not in any sentence, it was in the column the action table did not have.
+Residual: whoever holds the role legitimately and acts in bad faith goes on acting. The mechanism reduces who can, never the intent.
+
+### A31. The host in the middle of the relationship group
+The host that routes the contact address presents its own key to the issuer as the user's, and sits in the middle of the relationship through which invoices, bills and exam results pass.
+Mitigation: the contact key travels in the `consent.grant`, bound by signature to that consent, and the counterparty MUST refuse a group credential that does not match it (RFC 0007 §1, RFC 0006 §5). Before, the contact key had no validation chain at all, and the only thing attesting who was on the other side was the host that delivered it, which is exactly the party one wants to exclude.
+
+### A32. Hijacking a domain's federated entry point
+Whoever controls the DNS publishes the SRV pointing at their own host, serves the `.well-known` with a legitimate certificate for their own name and declares someone else's `addressDomain`. They forge nobody's signature, because what they want is to receive: they become the destination, read the `consent.request` objects in the clear and make senders give up forever with `unknown-recipient`.
+Mitigation: `delegatedFrom` as a proof signed by the key the address domain publishes in DNS, validated before using `hostKey`, `clientApi` or `federationInbox`, plus pinning of the `hostKey` on first use (RFC 0001 §3.2). The old argument that the transport signature solved this held for the outbound path and never for the inbound one, and the very `hostKey` anchoring that argument came from the unsigned document the attacker served.
+
+### A33. Correlation across issuers through the root identifier
+Two issuers, or a broker who buys both databases, cross-reference records by the root's `did:key` and discover they are talking to the same person, despite the address per relationship.
+Mitigation: no object destined for an issuer carries the root (ADR-0022). The `Consent`, the send capability and any entry addressed to the issuer use the identifier of that relationship's contact key. The address per relationship had existed since ADR-0008 and did not protect, because the object the relationship creates carried the global identifier along with it.
+Residual: the issuer loses the ability to prove to a third party which global identity accepted. It is an accepted cost, and it is written in ADR-0022.
+
+### A34. Downgrade by the inattentive member
+A single member of a project switches on assisted mode in their own box, and their host starts reading in the clear the tasks of the circles they belong to, without anyone else in the circle knowing.
+Mitigation: assisted mode MUST NOT reach a group of which the identity is not the sole holder, and a downgrade affecting someone else's project becomes a signed entry in that project's log (RFC 0006 §7, RFC 0013 §8). The anti-requirement of never degrading E2EE silently held for whoever switches it on, and was silent for everyone else.
 
 ## 3. Metadata: what leaks even with E2EE
 

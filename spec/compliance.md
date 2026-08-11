@@ -30,6 +30,19 @@ stating precisely rather than claiming broadly.
 
 <!-- rfc2119 -->
 
+# Roles of the Parties
+
+| Party | LGPD / GDPR | HIPAA | Note |
+|---|---|---|---|
+| User | data subject | individual | |
+| Issuer | controller of the data it processes for its own purpose | covered entity, when in health care | purpose declared in the consent object |
+| Host | processor for the content, which it does not read; controller of the routing metadata it collects in order to operate | business associate when it serves a covered entity, under a BAA | the metadata list in the cryptography document bounds what it holds |
+| Issuer gateway | processor for the issuer | business associate of the issuer | personal data outside the encryption boundary: see the retention section |
+| Directory | controller of the attribute-to-host binding | | a legal basis of its own, an open question in the human discovery document |
+
+The role follows from who determines the purposes and means of processing. The
+table is the default arrangement, and specific contracts can shift it.
+
 # Consent as Processing Record
 
 The consent object already carries what a valid consent requires under the
@@ -54,15 +67,16 @@ borrow credibility it has not earned.
 
 # Subject Rights
 
-| Right | Mechanism in EWP |
-|---|---|
-| Access | Full export, plus complete local view |
-| Portability | Export in a documented format, plus host migration |
-| Rectification | Correction as a new entry, visible, never a silent rewrite |
-| Objection and withdrawal | `consent.revoke` with edge effect, plus silent retirement |
-| Erasure | As specified below |
-| Information about processing | Record of discovery attempts, provenance by address, derived activity |
-| Review of automated decisions | Actor class plus human approval by key: the agent's decision is attributable and human review is demandable by construction |
+| Right | Typical basis | Mechanism in EWP |
+|---|---|---|
+| Access | LGPD art. 18; GDPR art. 15 | Full export, plus complete local view |
+| Portability | LGPD art. 18; GDPR art. 20 | Export in a documented format, plus host migration |
+| Rectification | LGPD art. 18; GDPR art. 16 | Correction as a new entry, visible, never a silent rewrite |
+| Objection and withdrawal | LGPD art. 8 §5 and art. 18; GDPR art. 7(3) and art. 21 | `consent.revoke` with edge effect, plus silent retirement |
+| Erasure | LGPD art. 18; GDPR art. 17 | As specified below |
+| Information about processing | LGPD art. 9; GDPR arts. 13-14 | Record of discovery attempts, provenance by address, derived activity |
+| Review of automated decisions | LGPD art. 20; GDPR art. 22 | Actor class plus human approval by key: the agent's decision is attributable and human review is demandable by construction |
+| Incident notification | LGPD art. 48; GDPR arts. 33-34 | Notification through the protocol itself, as specified below |
 
 The last row is worth noting. Regimes granting a right to human review of
 automated decisions usually meet systems that cannot say whether a decision was
@@ -123,9 +137,10 @@ A normative flow, actionable by the subject without support intervention:
 6. **A destroyed address MUST NOT be registered by another identity.** Parties
    that used to send to it hold grants still valid on their side, and a new
    holder of the same handle would inherit correspondence that is not theirs.
-   To avoid trading erasure for a list of who once had an account, the host
-   SHOULD retain only a cryptographic digest of the address, sufficient to
-   refuse and insufficient to enumerate.
+   The host MUST refuse registration of a handle already destroyed. To avoid
+   trading erasure for a list of who once had an account, the host SHOULD
+   retain only a cryptographic digest of the address, sufficient to refuse and
+   insufficient to enumerate.
 
 Emergency access and inheritance change the outcome only if the subject
 configured them beforehand.
@@ -139,12 +154,21 @@ configured them beforehand.
   grant time, making clear that revocation stops future sends and does not erase
   what law requires the issuer to keep.
 - **Hosts:** routing metadata and edge logs SHOULD live the minimum necessary
-  for operation and anti-abuse, with 90 days as an upper bound.
+  for operation and anti-abuse, with 90 days as an upper bound, and with the
+  record of discovery attempts retained under the user's control.
 - **Gateways and directories**, which handle personal data outside the
   encryption boundary, MUST publish a retention policy. It is a conformance
   requirement of the profile, not a courtesy.
 
 # Incident Notification
+
+Hosts, gateways and directories MUST publish a security contact in
+`/.well-known/ework`; MUST notify affected subjects of a security incident
+**through the protocol itself** (a system envelope, without depending on a
+parallel email channel); and MUST record the notification. Deadlines and
+authorities follow the applicable regime; the protocol supplies the channel and
+the proof of sending.
+
 
 A host that detects a breach affecting boxes MUST notify affected subjects
 through the protocol, and MUST do so even where the content was ciphertext,
@@ -162,7 +186,17 @@ the protocol. End-to-end encrypted mode is the configuration in which the host
 is not handling identifiable data at all, which is the cleanest posture and the
 reason the mode exists.
 
-Access audit trails are satisfied by the entry chain of the history document.
+The technical safeguards of 45 CFR 164.312 map directly onto what already
+exists: access control is the keys and the compartments; the audit trail is
+the immutable, chained history of the history document; integrity is the
+signatures; transmission security is TLS plus end-to-end encryption. What the
+protocol does not supply is the organisational part: the BAA and the
+administrative policies.
+
+Under the `us-hipaa@1` profile, PHI SHOULD travel only in end-to-end encrypted
+mode; a collection holding PHI in assisted mode requires a host covered by a
+BAA; and the six-year retention belongs to the covered entity, in its own
+systems. Health payloads inherit the `health` classification by default.
 
 # What the Protocol Does Not Promise
 
@@ -173,15 +207,36 @@ Access audit trails are satisfied by the entry chain of the history document.
   request against a retention obligation. It makes both visible and leaves the
   resolution where it belongs.
 
+An implementation MUST NOT advertise itself as "compliant by using EWP", and
+official materials MUST NOT promise this.
+
 # Security Considerations
 
 Cryptographic erasure depends on key destruction actually destroying keys. An
 implementation that keeps a key backup the host can decrypt has not erased
 anything, and MUST NOT describe the operation as erasure.
 
+Deletion also interacts with key backup: destroying the backup without
+invalidating the recovery kit would leave a phantom recovery path, and the
+ordering of the account deletion steps exists for that reason.
+
 The cooling-off window is a period in which a frozen account still exists. The
 requirement that it be indistinguishable from a nonexistent one, on every public
 surface, is what keeps deletion from becoming an oracle for who is leaving.
+
+The window is also a target for coercion and for deletion with a stolen kit.
+Notice on every device, with cancellation by any of them, is the
+countermeasure, and implementations MUST NOT allow the window to be shortened
+remotely.
+
+# Privacy Considerations
+
+This document exists to turn rights into buttons. The cross-cutting rule it
+consolidates: each party holds only what its function requires, for as long as
+it requires, and the user can see what each party holds, through the metadata
+list in the cryptography document, the record of discovery attempts in the
+human discovery document, and the statement of what remains visible in the
+compartments document.
 
 # IANA Considerations
 
@@ -192,3 +247,26 @@ with Specification Required as the registration policy, initially containing
 Each profile entry states typical legal bases, minimum issuer-side retentions,
 and additional requirements. Registration exists so that a profile identifier
 displayed to a user means something specific.
+
+# Open Questions
+
+1. **Specialised legal review** before the public opening: the language of
+   cryptographic erasure, the roles of the parties, and the content of the
+   profiles. It blocks phase 4 of the roadmap.
+2. Minors and accounts managed by a legal guardian: this depends on management
+   delegation, an open question of the identity document, and carries
+   requirements of its own under each regime.
+3. International transfer (LGPD arts. 33 and following; GDPR chapter V): a
+   host in one country serving a subject in another. The likely answer is
+   jurisdiction transparency in `/.well-known/ework` plus the user's free
+   choice of host.
+4. Whether a reference impact assessment (RIPD under the LGPD, DPIA under the
+   GDPR), as a companion document for host operators, is worth the effort.
+5. **How long a destroyed address stays blocked**, and what happens if the
+   subject wants to come back later with the same identity. Permanent blocking
+   is the safe answer and wastes a small host's namespace forever; expiring
+   the block reopens the window for inheriting someone else's correspondence,
+   however narrow. The likely way out: permanent by default, with the original
+   subject able to reclaim by proving possession of the old key, which
+   requires keeping more than a digest and has to be weighed against the right
+   to erasure.

@@ -112,9 +112,9 @@ it.
 | Understand the idea and judge it | [The vision](docs/vision.md), then [consent](spec/consent.md) |
 | Know what already exists and why this is not it | [The landscape](docs/prior-art.md) |
 | Implement a client or a host | [The specification](spec/README.md), starting at `core` |
-| Attack it | [The threat model](docs/threat-model.md), 29 adversaries with residual risks |
+| Attack it | [The threat model](docs/threat-model.md), 34 adversaries with residual risks |
 | See how the pieces fit | [The architecture](docs/architecture.md) |
-| Know why a decision was made | [The decisions](docs/decisions/adr-0001-open-federated-protocol.md), 19 ADRs, each with the alternatives it rejected and why |
+| Know why a decision was made | [The decisions](docs/decisions/adr-0001-open-federated-protocol.md), 23 ADRs, each with the alternatives it rejected and why |
 | Look up a term | [The glossary](docs/glossary.md) |
 | Know what is coming | [The roadmap](ROADMAP.md) |
 
@@ -123,12 +123,13 @@ academic form, and [the publication path](spec/PUBLISHING.md) towards the IETF.
 
 ## Try it
 
-Two reference hosts are public, on different domains, federating with each other.
-They exist to prove that federation works between real domains and not between
-two processes on one machine.
+Three reference hosts are public, on different domains, federating with each
+other. They exist to prove that federation works between real domains and not
+between two processes on one machine. Each serves the web client at `/app/`.
 
 - <https://ework.imake.codes>
 - <https://ework.dainner.app>
+- <https://app.eworkprotocol.org>
 
 The discovery document tells you everything a peer needs in order to reach a
 host:
@@ -141,7 +142,7 @@ curl -s https://imake.codes/.well-known/ework | jq
 > MLS is phase 2 of the roadmap. Do not put real data in.
 
 An overview of the protocol, with these diagrams and the technical detail, is at
-<https://ework.trustcode.me>.
+<https://eworkprotocol.org>.
 
 ## Language and licence
 

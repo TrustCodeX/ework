@@ -132,6 +132,12 @@ Conventions: **RF** functional requirement, **RNF** non-functional requirement. 
 | RNF-16 | Nothing in the protocol depends on FCM or APNs specifically, nor on any single provider | [M] | RFC 0004 |
 | RNF-17 | Encrypted envelopes padded to size classes: the host sees the class, not the exact size | [S] | RFC 0001, 0006 |
 | RNF-18 | Declared cryptographic agility, with a hybrid post-quantum ciphersuite as the phase 2 target | [S] | RFC 0006 |
+| RNF-19 | Authority per action verified by the peer: a valid signature is not enough to transition someone else's task | [M] | RFC 0015, 0004 |
+| RNF-20 | No object destined for an issuer carries the root key: a pseudonym per relationship, not linkable between issuers | [M] | RFC 0003, 0006, 0007, 0015 |
+| RNF-21 | The recovery kit derivation specified with test vectors, so that conforming clients agree | [M] | RFC 0003 |
+| RNF-22 | Equality of edge responses covers a live address with no relationship, and not only a dead address | [M] | RFC 0003, 0005, 0011 |
+| RNF-23 | Every relationship has an urgency ceiling, including between people, raised only by the recipient | [M] | RFC 0007, 0009, 0011 |
+| RNF-24 | Every relationship between people has a specified path to end it, silent and immediate at the edge | [M] | RFC 0007 |
 
 ## Regulatory compliance
 

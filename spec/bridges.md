@@ -70,6 +70,9 @@ Negotiation, consent, urgency, typed payloads, and actions do not cross. VTODO
 has nowhere to put them, and inventing X-properties no client reads would be
 decoration.
 
+Edits to unmapped fields arriving from the CalDAV side are preserved across the
+round trip through X-props.
+
 ## Encryption rule
 
 The bridge exists only (a) as a process on the client side, holding the user's
@@ -82,6 +85,9 @@ have to decrypt to serve.
 For a recipient with no EWP account, discovery having failed, the issuer MAY
 send email carrying a readable body, an `.ics` attachment with the VTODO, and an
 acceptance link hosted by the issuer.
+
+When the sml (structured email) working group publishes, the structured version
+of the same content SHOULD be embedded (draft-ietf-sml-structured-email).
 
 The link offers two paths: accept through an EWP provider, or answer basically,
 accept or decline, without an account. The basic answer maps back to an entry
@@ -109,6 +115,7 @@ and federation outward.
 ~~~
 POST /v1/offers          { to, title, due, dedupKey, payloads, attachments }
 GET  /v1/offers/{id}     -> { progress, negotiation }
+POST /v1/consents/qr     { scope } -> consent QR as PNG/URI
 POST /v1/webhooks        { url, events }
 ~~~
 
@@ -154,9 +161,13 @@ the first.
 
 # Importing From Legacy Sources
 
-Implementations MAY import from existing task and calendar systems. An imported
-task MUST be marked as imported and MUST NOT carry an `ework:origin` claiming a
-consent relationship that never existed.
+Implementations MAY import from existing task and calendar systems. Clients
+SHOULD import: `.ics` (VTODO), Todoist and TickTick (through their own JSON/CSV
+export), and Markdown task lists (`- [ ]`). Import creates ordinary local tasks;
+nothing federated.
+
+An imported task MUST be marked as imported and MUST NOT carry an `ework:origin`
+claiming a consent relationship that never existed.
 
 Fabricating provenance to make imported data look native destroys the property
 that makes `ework:origin` worth reading.
@@ -167,7 +178,8 @@ Every bridge is a place where the protocol's guarantees stop, and the boundary
 must be visible to the user. A task arriving through the email fallback has not
 passed the consent edge; a collection served over CalDAV is readable by whatever
 holds the CalDAV credential; the REST gateway holds an identity that can sign
-for the organization.
+for the organization. That gateway concentrates the organization's key: it
+SHOULD support HSM/KMS and rotation, as specified in the identity document.
 
 Bridges are also the most likely place for an implementation to accidentally
 grant more than intended, because they translate between models with different
@@ -178,6 +190,17 @@ rule: at a bridge, validate what crosses, in both directions.
 
 A bridge necessarily sees plaintext. A CalDAV gateway reads tasks, an email
 bridge reads the content it renders, and a REST gateway reads what it sends.
+The email fallback leaks the existence of the offer to the recipient's email
+provider: unavoidable, and documented here.
 Users MUST be told which bridges are active on their box, since a bridge silently
 enabled is indistinguishable, from the user's side, from an encryption mode
 downgrade.
+
+# Open Questions
+
+1. An outbound calendar bridge, exporting tasks with a time as VEVENTs in a
+   read-only ICS feed?
+2. A continuous import gateway (keeping Todoist synchronised into EWP during
+   the transition), or one-shot import only?
+3. Reference packaging for the issuer gateway (a Docker image plus examples
+   for common ERPs).

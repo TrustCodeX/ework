@@ -27,7 +27,7 @@ Rust is the choice because of OpenMLS (the mature, audited implementation of RFC
 
 ### 2.1 Server (the reference host)
 
-One binary, one database, one domain. It has to run in a homelab without ceremony and carry a family.
+One binary, SQLite, one domain. It has to run in a homelab without ceremony and carry a family.
 
 | Module | What it does | RFC |
 |---|---|---|

@@ -69,7 +69,7 @@ The direct analogue of scenario S1, running since 2009: the payer signs up at th
 The most mature consent model in the ecosystem: consent as an API resource with granular scope, a purpose, a term, revocation at any moment from either end, and the golden rule: **revoking must be as simple as granting**. 62 million active consents prove the model scales. The Consent object of RFC 0007 is traced from here. [journey](https://openfinancebrasil.atlassian.net/wiki/spaces/OF/pages/1128890377/Jornada+Otimizada)
 
 ### Pix
-What a payment task carries: the EMV BR Code (static, or dynamic with a JWS payload), and the fields of a charge with a due date (CobV): txid, debtor, amount, due date, late fee, interest, discount. Pix Automático (live since 2026-06-16) defines the enrolment journeys for recurrence, including the composite QR code ("immediate charge plus recurrence"), which is the UX template for our recurring offer. [central bank guide](https://liftchallenge.bcb.gov.br/content/estabilidadefinanceira/pix/automatico/guia_pix_automatico.pdf)
+What a payment task carries: the EMV BR Code (static, or dynamic with a JWS payload), and the fields of a charge with a due date (CobV): txid, debtor, amount, due date, late fee, interest, discount. Pix Automático (live since 2025-06-16) defines the enrolment journeys for recurrence, including the composite QR code ("immediate charge plus recurrence"), which is the UX template for our recurring offer. [central bank guide](https://liftchallenge.bcb.gov.br/content/estabilidadefinanceira/pix/automatico/guia_pix_automatico.pdf)
 
 ## 5. Urgency and notification delivery
 

@@ -10,7 +10,7 @@ Phases with exit criteria. Dates are honest targets for a one-person project wit
 - [x] Resolve the blocking questions: session authentication (RFC 0004 §1) and scheduled release of escalation (RFC 0009 §6), both closed on 2026-08-04
 - [ ] End-to-end consistency review (the six scenarios run "on paper" with no magic)
 - [ ] Decide the final name (RFC 0000 OQ-1)
-- [ ] Property verification of the three state machines (negotiation, execution, acknowledgement) with light model checking before freezing
+- [x] Property verification of the state machines with light model checking, in `scripts/check_maquinas.py`, inside `make check` (2026-08-10). There are **two** machines, not three: the confirmation one is a view of the execution one, and treating them as separate things is what let an edge exist in only one of them. It found four defects: the two diagrams diverged, a task in `awaiting-confirmation` was stuck with no way out for the owner, `countered` looked final, and the implementation did not check compatibility between action and state, so `confirm` completed a task nobody had executed
 
 **Leaves the phase when:** an external technical reader can point at holes just by reading, and the known holes are recorded as questions rather than hidden.
 
