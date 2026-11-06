@@ -42,16 +42,23 @@ interrupts, so the user disables notifications, and then nothing interrupts.
 | `high` | Prominent notification, re-notified until interaction |
 | `critical` | Maximum alert, may pierce do-not-disturb where the platform permits, **requires acknowledgement**, triggers escalation |
 
-The levels map to ntfy's priorities 1 to 5, to the Web Push `Urgency` field,
-and to Android and iOS notification channels.
+The levels map to ntfy's priorities 1 to 5, to the Web Push `Urgency` field
+(the normative mapping is in the sync document), and to Android and iOS
+notification channels.
 
 **The sender proposes urgency; the receiver holds the ceiling.** Every
 relationship carries one: the scope's `maxUrgency` for an issuer, and the
 `Relation` object's for a person, which starts at `normal`. Hosts and clients MUST
 lower any urgency above the ceiling, and the ceiling MUST NOT be raised by the
-sender under any circumstances. An issuer granted `maxUrgency: normal` that sends
-`critical` MUST be refused at the edge. Without that ceiling, urgency becomes a
-field every marketer sets to maximum.
+sender under any circumstances. Without that ceiling, urgency becomes a field
+every marketer sets to maximum.
+
+The two lower different things, and the client is the one that always holds:
+`ework:urgency` travels inside the encrypted task, so the host reaches only the
+`urgencyHint` in the header, which is optional and starts off. With the hint on,
+an issuer granted `maxUrgency: normal` that declares `critical` MUST be refused
+at the edge; with it off, the edge has nothing to read, and the ceiling is
+applied by the recipient's client, over the real value.
 
 The ceiling previously existed only inside the consent scope, and a relationship
 between people creates no consent object, so after first contact `critical` was
@@ -68,7 +75,22 @@ important and not urgent.
 
 - Action `ack` means "I am aware". It pauses re-notification and escalation. It
   does **not** complete the task.
-- Actions `complete` and `fail` are outcomes. They end the alert cycle.
+- **An outcome ends the alert cycle of the occurrence**: the task reaching
+  `completed`, `failed` or `cancelled`, through `complete`, `confirm`, `fail`,
+  `cancel` or `decline`. What counts is the state the task reached, not who
+  signed the entry: the owner, an executor who is not the owner, or the issuer
+  speaking about its own offer across the federation edge. An offer the issuer
+  cancelled must not keep waking the owner and the owner's contacts. A
+  `complete` that leads to `awaiting-confirmation` is not an outcome yet, as
+  the confirmation item below says.
+- **`ack` pauses the cycle of whoever the notification reached**: the owner,
+  whom step 0 reaches on the owner's own device, and the contacts of the
+  following steps. The issuer is never among them, not even when executing: the
+  escalation is armed in the owner's box, and the steps name the owner's device
+  and addresses of the owner's personal relationships, never the relationship
+  with the issuer. The issuer's `ack` therefore MUST NOT pause the escalation,
+  and MUST be recorded as an entry without effect. What ends the cycle coming
+  from the issuer is an outcome.
 - **Execution confirmation is a distinct thing**, specified in the autonomous
   actors document: acknowledgement is "I saw it", confirmation is "it was done,
   and someone attests to that". A critical task MAY require both, and in that
@@ -100,7 +122,10 @@ a reminder resent by the issuer does not create a duplicate alert.
 }
 ~~~
 
-- Step 0 is always the executor themselves. Without an acknowledgement within
+- Step 0 is always the task's owner, on the owner's own device, and in a
+  personal task the owner is also the executor. When the executor is the
+  issuer, the escalation still belongs to the owner: the owner is the one who
+  needs to know that nobody acted. Without an acknowledgement within
   `ackTimeout`, the policy advances one step. `repeat` bounds complete cycles,
   so escalation cannot become a perpetual alarm.
 - **An escalation contact requires prior consent, and the consent is the
@@ -154,8 +179,15 @@ The mechanism is designed for a host that cannot read content.
 On arming a step, the client pre-composes the envelope for the contact,
 encrypting it to that contact's group where end-to-end encryption is in use, and
 deposits it with the host together with a `releaseAt` time. The host releases it
-at that time unless it receives a cancellation first, which an entry carrying
-`ack` produces, and which any of the owner's devices MAY issue.
+at that time unless it receives a cancellation first: an entry carrying `ack`
+arrived from the owner, or the task reached an outcome through an entry from
+any participant, including the issuer's entry arriving across the federation
+edge. Any of the owner's devices MAY issue the cancellation. The owner's
+account deletion window is the exception to the release time: a step that falls
+due inside it is not released, then or after cancellation, as the compliance
+document specifies, because the frozen account cannot give the `ack` that would
+silence it, and releasing it later would alarm the contact about a moment that
+has already passed.
 
 The host learns only the pair (destination, release time). It learns neither
 content nor reason, and that metadata appears in the exhaustive list of the
@@ -186,7 +218,8 @@ critical went past".
 The default is **disabled**, and the escalation interface SHOULD offer the
 choice with the explanation attached. With it disabled, `critical` depends on
 local scheduling: reliable for recurring alarms, more fragile for an ad-hoc
-critical with every app dead.
+critical with every app dead. The push subscription, and what the `Urgency`
+header reveals even with the hint off, are in the sync document.
 
 # Local Alarms
 
@@ -211,7 +244,18 @@ Urgency is a vector of psychological pressure in scams: `critical` from an
 issuer requires the `maxUrgency: critical` scope in the consent, granted
 through a dedicated screen of its own, and clients MUST display who asked for
 the urgency. An issuer that abuses `high` or `critical` beyond its scope is
-blocked at the edge (`over-rate`/`no-consent`).
+lowered to the ceiling by the recipient's client, always, and refused at the edge
+with `no-consent` whenever the `urgencyHint` gives it away. What the defence
+never does is depend on the hint: it is opt-in, and a protection against scams
+that held only for people who enabled an extra piece of metadata would protect
+exactly those who need it least.
+
+Escalation is the recipient's safety net, and only those it reaches pause it.
+Letting the issuer's `ack` pause it would give the offering party a way to
+silence the owner's alert without doing anything, and the case where that
+matters is exactly the one escalation exists for: whoever should have acted did
+not. What comes from the issuer and ends the cycle is an outcome, which stays in
+the history under the issuer's signature.
 
 Escalation is a mechanism for reaching a third party, so it is a mechanism an
 attacker would like to abuse. The requirements that the contact has consented,
@@ -238,3 +282,8 @@ contact rather than being assignable unilaterally.
    policy.
 3. Integration with the operating systems' focus regimes (Focus and DND APIs)
    as implementation guidance.
+4. How an escalation contact's `ack` comes back. The contact is among those the
+   notification reaches, and is not a participant of the task, so it signs no
+   entry on it. It remains to be specified how that acknowledgement reaches the
+   owner's queue, and whether it pauses the whole cycle or only the steps that
+   reach the contact.

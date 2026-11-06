@@ -206,6 +206,14 @@ In **end-to-end encrypted mode** the host observes:
   task it refers to nor what it chains. This is new metadata, knowingly
   accepted, because what it buys is fork detection, which without it leaves no
   trace at all.
+- The push subscription of each device (see the sync document): the host
+  keeps the push endpoint each device chose and sends content-free wake-ups.
+  The host learns the host name of that endpoint, which reveals the person's
+  platform or distributor; the push service and any relay learn which device
+  was woken, when, the size class and the `Urgency` header, which reveals an
+  escalation in progress and, if the user enabled the hint, the urgency. This
+  is new metadata, knowingly accepted, because without it the device only
+  learns of news while the application is open.
 
 In **assisted mode** the host additionally observes everything above plus the
 content: task titles, descriptions, payloads, attachments, and entries.

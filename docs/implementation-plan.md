@@ -38,7 +38,7 @@ One binary, SQLite, one domain. It has to run in a homelab without ceremony and 
 | Consent edge | validates credential, scope, rate and purpose before accepting | 0007, 0011 |
 | Address registry | contact addresses per box, their state, retirement with no oracle | 0003 |
 | MLS transport | orders commits per group, replicates ciphertext, is never a member | 0006 |
-| Push | Web Push and UnifiedPush, with no content in the push | 0004, 0009 |
+| Push | Web Push and UnifiedPush, with no content in the push; the bridge to APNs and FCM is a publisher relay, outside the protocol (ADR-0031) | 0004, 0009 |
 
 The build order: discovery and session, then tasks and sync, then blobs, then federation with a second host, and only then the consent edge (which only makes sense once there is somebody on the other side).
 
@@ -47,7 +47,7 @@ The build order: discovery and session, then tasks and sync, then blobs, then fe
 The client is where the intelligence lives, because the server is blind. Two incarnations, the same core:
 
 - **A CLI**, first, because it is what lets you test the protocol without arguing about pixels: create an identity, list, accept, complete, synchronise two devices, run two hosts talking to each other. It is also the conformance tool.
-- **An app** (mobile first, proposed in Flutter or in Kotlin and Swift over the FFI): where the promise meets real people, with the three views, local alarms and the QR consent flow.
+- **An app** (mobile first; Flutter over the Rust core through FFI, decided in [ADR-0031](decisions/adr-0031-mobile-client-in-flutter.md)): where the promise meets real people, with the three views, local alarms and the QR consent flow.
 
 Responsibilities that necessarily stay in the client: decrypting, computing actionability from the graph, firing local alarms, running self-management rules, applying the anti-abuse presentation rules (RFC 0011 §3) and keeping the display preferences.
 
@@ -138,7 +138,7 @@ E1 to E6 are phase 1 of the roadmap, E7 is phase 2, E8 and E9 are phase 3, and E
 ## 5. Open decisions
 
 1. **Is Rust confirmed for the core?** The argument is OpenMLS and compilation to wasm and FFI. The cost is the learning curve if one person is writing alone, and the honest alternative would be Go on the server with the cryptographic core still in Rust, accepting one more boundary.
-2. **App: Flutter or native?** Flutter delivers both platforms from one base, and the FFI to the core is a solved problem. Native gives better critical alarms and high priority notifications, which is precisely the S4 scenario.
+2. **App: Flutter or native?** Decided on 2026-09-10 ([ADR-0031](decisions/adr-0031-mobile-client-in-flutter.md)): Flutter, with the core in Rust exposed through FFI. Native would give better critical alarms and high priority notifications, which is precisely the S4 scenario, and whatever needs a native API goes through a platform channel.
 3. **Are the web wallet and the web client the same app?** The proposal: they start separate (the wallet is configuration, the client is daily use), and they may converge later. Separating reduces the scope of the first web deliverable.
 4. **Where to host the public sandbox** and under which domain, which depends on the protocol's naming decision.
 

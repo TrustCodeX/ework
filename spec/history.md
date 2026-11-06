@@ -81,7 +81,8 @@ action while discarding the message, nor the reverse.
 `accept` (`slotId` when the payload offers options), `decline`, `counter`
 (`task`: the proposed revision), `start`, `ack`, `complete` (optional
 `result`), `fail`, `cancel`, `confirm`, `contest`, `snooze` (`until`),
-`reschedule` (`due`, `start`), `update` (`task`: the revision), `reassign`
+`reschedule` (`due`, `start`), `update` (`task`: the revision), `harden`
+(`execution`: the composed policy, as the actors document specifies), `reassign`
 (`to`), `attach` (`attachments`: the list added), `detach` (`attachments`: the
 `id`s removed).
 
@@ -109,7 +110,12 @@ at the counterparties, not a side effect of another operation, so it is an
 entry with an action and never a direct write to the object.
 
 - `attach` adds. The attachments travel in `action.attachments`, and the blobs
-  MUST be on the host before the entry arrives.
+  MUST be on the host before the entry arrives. When the entry crosses hosts,
+  as the issuer's does when it attaches across the federation edge, the host
+  that matters is the applier's: the blobs travel like the offer's, granted by
+  the writer's host to the destination domain and fetched by the receiver's
+  host before applying. An entry whose blob did not arrive MUST NOT be applied
+  by half: the delivery fails as a transient failure and is retried.
 - Whoever MAY comment MAY attach: a participant who sees the entry's
   compartment. Attaching is NOT the offerer's privilege, and restricting it to
   them would restore the very problem this solves, because whoever does the
@@ -135,6 +141,12 @@ erase someone else's contribution with no entry recording the erasure, which is
 exactly the hole immutability closes for the rest of the history. An offerer who
 wants a specific attachment gone uses `detach`, which stays written.
 
+**The offerer's `detach` reaches what the offerer added with `attach`.** An
+attachment that came in the offer has no matching `attach`, so, like every
+birth attachment, only the `owner` removes it: it is part of what the person
+checked when accepting. An offerer who wants a different list in the offer
+sends a revision, which arrives presented as an update of what was offered.
+
 ## Authority
 
 A valid signature proves **who wrote** an entry. It never proves that the author
@@ -154,6 +166,7 @@ model document:
 | `snooze` | `owner` (local effect) |
 | `reschedule` | `owner`, `executor` or `issuer` |
 | `update` | `issuer` |
+| `harden` | `owner` |
 | `reassign` | `owner` |
 | `attach` | anyone who may comment |
 | `detach` | whoever signed the corresponding `attach`, or the `owner` |
@@ -166,10 +179,42 @@ state. Clients MUST show void entries as refused attempts, naming the missing
 role, because losing the trail of who tried to act outside their role loses the
 abuse signal itself.
 
+**Resolving the author means checking a binding, never comparing strings.** The
+`author` is an identity, and a task also names roles by address:
+`ework:origin.issuer` is always an address, per the data model document. The
+author resolves to a role named by identity when the two are the same, and to a
+role named by address only when the receiver has verified that the address
+answers for that identity: the author's identity document lists the address in
+`handles` and came from the address's own domain, or the receiver hosts the
+address and holds the account (the handle proof of the identity
+specification); and the entry was signed by a device of that document.
+Receivers MUST NOT compare an identity with an address as strings, nor accept a
+binding that the entry or the envelope merely declares. When the task carries no
+`participants`, the roles are the ones the data model document already assigns:
+the identity that owns the box where the task lives is `owner`, and also
+`executor`, and the identity that resolves to `ework:origin.issuer` through that
+binding is `issuer`.
+
+String comparison fails in both directions. With different forms it never
+matches, and takes the role from whoever holds it: the reference host measured
+this on 2026-10-21, where the `cancel` that the issuer of an offer without
+`participants` signed on its own offer was recorded as a void entry, for lack of
+`issuer`. With a form the author picks it matches when it should not: an entry
+writing the issuer's address as its `author` would gain the role with nothing
+binding the signing key to that address.
+
 The `owner` MAY widen the authority of an action per task, in
 `ework:execution.maySign`, and MUST NOT narrow it below this default nor grant
 itself a role it does not hold. Seeing a compartment authorises commenting, never
 transitioning.
+
+**A role arriving in an offer is a proposal, and only acceptance makes it a
+role** (data model document, ADR-0029). Until the `owner`'s `accept`, the issuer
+holds only `issuer`: `start`, `complete` or `fail` signed by it before acceptance
+MUST be recorded as void entries, for lack of role. Acceptance ratifies exactly
+the roles of the accepted offer, and nothing beyond them. After it, the issuer
+the offer proposed as `executor` signs the executor's actions, and is whom the
+`owner` reclaims from with `reassign` pointing at itself.
 
 Without this rule an issuer signs `accept` on its own offer and produces a signed
 record that the charge was accepted, and a supplier signs `complete` to release
@@ -196,14 +241,72 @@ The task's execution policy declares when a message is mandatory:
 ~~~
 
 Possible values are a list of action types, `[]` (never), or `["*"]` (every
-action). Receivers MUST reject an entry with no message when that task's policy
-requires one for that action, and the rejection is the peer's, not the host's,
-which reads nothing.
+action). The policy that applies is the **composed and published** one, not the
+one that arrived inside the object: issuer and recipient compose field by field
+as the actors document specifies, for this field the composition is the union of
+the two lists, and the result enters the task through a `harden` entry.
+
+Published, and not kept in the box of whoever hardened, because a union with a
+private list would charge the writer a requirement they had no way of knowing: the
+entry would be born void at one peer and effective at another, and the two would
+derive different states from the same history. That is why the requirement that
+applies to an entry is the one in its **causal past**, and hardening published
+afterwards does not reach it.
+
+**Peers check it, in two moments that do not substitute for each other.** Before
+publishing, whoever composes the entry MUST NOT sign it without a message when
+the policy requires one for that action: the client asks the question, and the
+client refuses to send without the answer. On receipt, whoever applies the entry
+MUST treat one arriving without the required message as a **void entry**: it
+stays in the history, with author and signature, and changes no state. The first
+moment is the only one that spares the useless record, and it depends on the
+client being honest; the second depends on no client at all, and is what makes
+the rule hold against someone who wrote their own client precisely to evade it.
+
+**The two moments judge by different policies, and that is deliberate.** In the
+first, the signer's private policy also applies, as the actors document specifies,
+because it binds exactly whoever can see it: the client holding it refuses to sign
+against it. In the second, only the published policy applies, because someone
+else's entry judged by an invisible policy is what manufactures state divergence.
+Whoever wants their own requirement to bind the other end publishes the composed
+policy and stops depending on luck.
+
+**Discarding a received entry would be worse than applying it.** A discarded
+entry leaves the chain, and every later entry referencing it in `after` then
+points at an absent parent, which is exactly the trace that fork detection tells
+verifiers to read as suspected withholding. A receiver that discards manufactures
+the signal of the attack the protocol asks it to watch for, which is why the
+outcome here is the void entry.
+
+**The recipient's host is not where this is checked.** Under end-to-end
+encryption it reads neither `message` nor `ework:execution`, and it does not
+judge what it cannot see. Granting it that sight would put both fields on the
+exhaustive list of observable metadata, trading the confidentiality of the whole
+history for a check the peer already performs. Where the host is a member of the
+group by the owner's explicit act, in assisted mode, it is a receiver like any
+other and what binds every receiver binds it, without that becoming a guarantee:
+a check that exists only in some deployments is not a property of the protocol,
+and asserting it as one would teach clients to rely on a control that disappears
+the moment content is encrypted.
+
+The host of whoever **writes** is a different matter, and the distinction decides
+where each check lives. It sits inside the signer's own domain, before the entry
+exists for anyone else, and it MAY refuse publication by the same criterion the
+client uses. That is not a host judging someone else's entry: it is the first
+moment above, performed by another program on the same side, and it carries the
+same caveat the client does, that refusing there spares the useless record and is
+not what sustains the rule.
 
 This is what implements the question "why do you want to mark this complete?":
 the client asks because the action requires it, and the answer becomes the
 record. Declining without saying why remains acceptable in a relationship with
 an issuer and is usually unacceptable inside a project.
+
+Two interface traps are worth a rule of their own, because both satisfy the
+letter and kill the purpose: clients MUST NOT fill the message in themselves
+from the action's label, and MUST NOT accept a message consisting only of
+whitespace. "Complete" as the justification for a completion is a record that
+passes every validation and answers nothing.
 
 # Audience
 
@@ -226,6 +329,57 @@ declined offer goes to the relationship's group, because the issuer needs to
 know; a completed project task goes to its compartment. A personal note uses a
 one-member group, the degenerate case of compartments, which implementations
 MUST make cheap because it is the most common of all.
+
+## Without a group, the audience travels with the publication
+
+While the relationship has no cryptographic group, as in an implementation
+without MLS, publishing says nothing about the audience by itself, and what
+carries the entry to the issuer is the writer's host. The client therefore
+MUST declare the audience when it publishes a comment, in the `audience` field
+of the call that publishes the entry (`Entry/add` in the reference
+implementation). The declaration belongs to the publication, not to the entry:
+the group is not a field of the signed entry either, and the entry that reaches
+the issuer is the same, with the same hash, whether it left through a group or
+through a host that forwarded it.
+
+| `audience` | Intent | What the writer's host does |
+|---|---|---|
+| `personal` | personal note | keeps it in the writer's box and sends it to no one |
+| `relation` | interaction with the issuer | sends it to the task's issuer, if the level allows (rule 2) |
+
+1. **Without a declaration, it is a personal note.** This is the default
+   because it is the cheap mistake: a note that should have gone can be sent
+   again, and words that should not have gone cannot be taken back. A client
+   that does not know this section keeps producing exactly what it produced.
+2. **`relation` only leaves at the `full` level.** A comment directed at the
+   issuer is what the consent document lists at that level, and the level that
+   counts is the effective one defined there, the lower of the relationship's
+   and the task's. Below it, the host MUST refuse the publication, and MUST NOT
+   keep it as a personal note: someone who asked to talk to the issuer and had
+   the words kept for themselves suffers the leak in reverse, the conversation
+   that did not happen without anyone knowing. The refusal SHOULD state the
+   level in force, so the client can explain why it did not go and offer to
+   keep it as a note.
+3. **`relation` requires an issuer.** It applies to a task offered by an
+   issuer, written by whoever received it. On a task without an issuer the host
+   MUST refuse the declaration, because there is no one to interact with.
+4. **An entry with an action does not use the declaration.** It goes where the
+   action makes sense, as the previous paragraph says, and what the issuer
+   receives of it is still decided by the consent document's level. Declaring
+   `personal` on a refusal does not hide the refusal, and declaring `relation`
+   on a `start` does not get past the level.
+5. **From the issuer to the recipient there is nothing to declare.** The task
+   lives in the recipient's box, and every entry the issuer writes about it goes
+   there: for the issuer, every word is interaction with the recipient. In a
+   project task the audience is the compartment, and the declaration does not
+   apply either.
+
+The level is within the client's reach before sending, which is what lets it
+meet the duty above to show who an entry goes to: the relationship's level is in
+the `Consent` its own box granted, and the task's in `ework:statusSharing`.
+Raising the level of an existing relationship is revising the agreement, as the
+consent document describes, and the new level does not reach what was already
+written: an earlier personal note stays personal.
 
 # Mentions
 
@@ -401,6 +555,12 @@ assertions. That eliminates an entire class of forgery: nobody can insert a
 "so-and-so changed the deadline" that never happened, because no channel exists
 through which that assertion could enter.
 
+`harden` falls on the entry side of that line by the same test, and it is worth
+saying why, since it touches a property of the task and would look derivable: the
+input that produces it is private, as the actors document specifies, and travels by
+no other path. Deriving locally what nobody else can see would give each peer a
+different policy, which is the opposite of what this section protects.
+
 Clients MUST merge entries and derived activity into a single timeline,
 distinguishing the two visually.
 
@@ -436,7 +596,41 @@ legitimate member of a group could sign any other member's transition, producing
 an entry valid by every criterion this specification listed, and the audit
 artifact forged itself with an impeccable signature. Conformance suites MUST test
 that an action signed without the required role enters the history and changes no
-state.
+state, and MUST test author resolution in both directions: the issuer of an offer
+without `participants` cancels its own unaccepted offer, and the same action
+signed by an identity that does not answer for the address in
+`ework:origin.issuer` changes no state.
+
+**Required justification is not a host control.** Writing that the host refuses
+an entry violating the policy would describe a host that reads the entry, and the
+host that reads the entry is the adversary this whole document defends against.
+Under end-to-end encryption the sentence would be unenforceable, and in an
+unencrypted deployment it would be worse than unenforceable: true there and false
+everywhere content is encrypted, teaching clients to depend on a control that
+disappears exactly when the protocol's guarantees arrive. The check lives with
+peers because that is the only place it always holds. Conformance suites MUST
+test that an entry lacking the required message enters the history and changes no
+state, and MUST test it with the host outside the group.
+
+**The audience without a group is an instruction to one's own host.** The
+declaration is not a claim by the writer about the entry, which the issuer would
+have to check: it is the request the client makes to the host that forwards, and
+the only party that could disobey it is that host, which without encryption
+already reads everything the person writes. With the relationship's group the
+choice becomes cryptographic. Conformance suites MUST test that a comment without
+a declaration reaches the issuer at no level, that one declared `relation`
+reaches it at `full`, and that below `full` it is refused and not kept.
+
+**The path does not change the effect.** An entry that counts produces the same
+state whatever path brought it to the box where the task lives: the session of
+someone who sees the task and the issuer across the federation edge go through
+the same checks and apply the same effect, and the policy that judges them is
+the published one, never the receiver's private policy. This was measured on the
+reference host on 2026-10-21: across the edge, the issuer's `reschedule` was
+recorded as effective without changing any date, `attach` without adding any
+attachment, and `cancel` without disarming the owner's escalation. Conformance
+suites MUST test, for every action the issuer MAY sign, that its effect across
+the edge equals its effect in the local box.
 
 Atomicity is structural, not an implementation rule: message and action are the
 same signed object. Conformance suites MUST test that an entry carrying an
@@ -465,6 +659,11 @@ error remains human, writing to the wrong audience, and the defence is in the
 interface. Entries inherit the group's encryption, so hosts see only one more
 envelope of size X for group Y.
 
+Without a group, the writer's host reads the declared audience of each comment.
+With a group, that is the group id the cryptography document already lists among
+what hosts see; without one, the host already reads the whole entry. There is no
+new metadata.
+
 # Open Questions
 
 1. An entry anchored on a sealed field: allow it for whoever is in the narrow
@@ -476,3 +675,17 @@ envelope of size X for group Y.
    someone who belongs to several, without confusing each entry's audience.
 5. Is an explicit `note-to-self` action type worth having, or is a personal
    note always a null action in the personal group?
+6. `harden` belongs to the `owner`, and in a project task that means one person
+   hardening for the whole compartment. It remains to be decided whether the
+   `executor` also hardens what binds them, and what happens when two hardenings
+   overlap in the same fields.
+7. An entry whose blob never arrives (the origin host lost it, or does not
+   grant it) is retried until the sender gives up, and the same author's later
+   entries cite it in `after`, so they have no parent on the receiving side. It
+   remains to be decided whether, after a deadline, the receiver records it
+   without effect so the chain can continue, and how that is told apart from
+   the withholding that fork detection asks to watch for.
+8. Below the `full` level, a recipient has no way to direct a comment at the
+   issuer without acting. It remains to be decided whether a directed comment
+   should already leave at `milestones`, as speech rather than status, or
+   whether the level stays the only control over what leaves.

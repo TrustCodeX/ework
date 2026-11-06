@@ -213,12 +213,70 @@ authorization. It is not a polling tool.
 
 # Payloads and Consent
 
-The consent scope lists `payloadTypes`. The receiving host MUST refuse an
-envelope carrying a payload type outside the granted scope.
+The consent scope lists `payloadTypes`: the types that issuer is allowed to
+send. This is what keeps a grant meaningful, because consent to receive bills is
+not consent to receive appointment reminders. What was missing was who checks,
+and the question is not housekeeping: the type travels **inside** the task, the
+task travels encrypted to the relationship's group, and the exhaustive list of
+metadata a host observes does not include the payload type. Writing that the
+receiving host refuses an out-of-scope payload would describe a host that reads
+the task.
 
-This is what keeps a grant meaningful. Consent to receive bills is not consent
-to receive appointment reminders, and without the check the scope would be
-advisory.
+**Peers check it, in two moments that do not substitute for each other.**
+
+- **Before sending**, an issuer MUST NOT emit an offer whose payload type falls
+  outside the scope it holds. It knows that scope in full: it received the
+  signed grant and the capability that summarises it in the `scopeHash`. The
+  issuer's own host or gateway composes the offer in the clear, inside the
+  signer's domain and before the envelope exists for anyone else, and it MAY
+  refuse to emit by the same criterion. This is the only moment that spares the
+  useless delivery, and it depends on the issuer being honest.
+- **On receipt**, the recipient's client MUST refuse the out-of-scope payload
+  and MUST NOT present the offer as an acceptable one. This depends on no
+  issuer, and it is what makes the scope hold against one that ignores it.
+  Accepting an out-of-scope offer regularises what the issuer had no right to
+  send, so a screen presenting it with the usual button is itself the failure.
+
+**Refusing is not making it disappear.** The refusal MUST be visible to the
+recipient, naming the issuer, the type that arrived and the scope in force, and
+clients SHOULD offer the two exits that already exist: revoking, and revising
+the agreement to include that type. The common case is not a scam, it is the
+clinic that started sending appointment reminders under a billing grant:
+discarding in silence would leave the person without the appointment, unaware it
+ever existed, and without the signal that this issuer sends outside what it
+signed.
+
+For the issuer the refusal produces no new signal: `receipt.delivered` already
+left the edge, and what travels beyond it remains whatever the status policy
+allows. The protocol emits no read receipts anywhere, and this is not where it
+starts.
+
+**Out of scope is not the same as unknown**, and conflating them undoes one side
+or the other. An unknown type is a limitation of the reader, and the degradation
+rule applies in full: the task appears, without the payload. An out-of-scope
+type is a violation by the writer, and the task is not born. A client applying
+degradation to the second case would deliver the task and call the violation an
+incompatibility.
+
+**The recipient's host is not where this is checked.** Under end-to-end
+encryption it does not read the payload, and it does not judge what it cannot
+see. Granting it that sight would put the payload type on the exhaustive
+metadata list, and the price is in the privacy considerations below: the type
+name, next to the sender's domain, is the subject matter. Where the host is a
+member of the group by the owner's explicit act, in assisted mode, it is a
+receiver like any other and what binds every receiver binds it, without that
+becoming a guarantee: a check that exists only in some deployments is not a
+property of the protocol.
+
+**What the edge still enforces** is what it can see, and it remains what makes
+consent a delivery gate: a live address, a grant in state `granted`, a
+capability compared against the one issued for that relationship, and the volume
+for the period. None of it depends on reading content, which is why none of it
+disappears when the ciphertext arrives.
+
+Conformance suites MUST test that an offer carrying an out-of-scope payload type
+does not become a task and surfaces to the recipient as a violation of that
+relationship, and MUST test it with the host outside the group.
 
 # Payloads and Compartments
 
@@ -247,10 +305,19 @@ type that requires them is misdesigned.
 Payment is the target. Beyond the beneficiary rule, clients MUST NOT accept a
 `payment` payload under a consent that does not include that scope, and SHOULD
 validate internal consistency, checking that the digitable line, the barcode
-and the amount agree, before displaying payment buttons. In a multi-party
-project, a payment payload created in the clear in the broad compartment is a
-leak no configuration repairs afterwards, and the conformance suite tests that
-it is born sealed.
+and the amount agree, before displaying payment buttons. That is the consent
+rule above applied to the sharpest case, and it was already written this way,
+at the client, before the rule existed: the payload that carries money is the
+one that can least afford a check that vanishes when the ciphertext arrives. In
+a multi-party project, a payment payload created in the clear in the broad
+compartment is a leak no configuration repairs afterwards, and the conformance
+suite tests that it is born sealed.
+
+Scope enforcement that works only in an unencrypted deployment is worse than no
+enforcement: it is true in the demo and false in production, and it teaches
+clients to rely on a control that disappears exactly when the protocol's
+guarantees arrive. It is the same reason the required justification lives with
+peers in the history document.
 
 # Privacy Considerations
 
@@ -260,6 +327,14 @@ clinic reveals something even without the content. The compartments document
 specifies how to seal payloads away from parties who should not see them, and
 the cryptography document states what the host observes in each mode.
 
+**The type name is content, which is why it stays off the observable metadata
+list.** Next to the sender's domain it is the subject matter of the task. Putting
+it in the clear so the host could enforce the scope would hand over the category
+of everything that arrives, in every relationship, permanently, and would buy
+with it one identified peer's check against another, inside a relationship the
+person already authorised and can sever. The host routing the bill does not need
+to know it is a bill.
+
 # Open Questions
 
 1. International `payment`: `pix` and `boleto` are Brazilian. Generalize with
@@ -268,6 +343,23 @@ the cryptography document states what the host observes in each mode.
    core, or an extension from the health community?
 3. Formal validation (a JSON Schema published per payload) as part of the
    registry.
+4. Can the check be returned to the edge without naming the type? The obvious
+   construction is an opaque per-relationship commitment: the grant issues one
+   value per permitted type, the envelope carries the one it uses, and the host
+   compares without knowing what it compares. It looks attractive and probably
+   is not: the host stores the grant, so it knows the list of permitted types,
+   and the presented value becomes an index into it. With one type in scope the
+   commitment tells the host nothing it does not already know and catches no one
+   the capability comparison does not already catch; with several, it starts
+   telling the host which one each envelope is, which is exactly what the rule
+   above declines to hand over. What stays open is whether a better construction
+   exists, not the proposal.
+5. The refusal offers "revise the agreement to include this type" one tap away,
+   and that tap is a scope widening decided under the pressure of a task the
+   person wants to see. It is consent bundling through the back door, with the
+   issuer choosing the moment. What remains to be decided is whether revising
+   from a refusal requires the full granting screen, with the whole scope in
+   view, or whether the warning suffices.
 
 # IANA Considerations
 

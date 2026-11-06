@@ -1,0 +1,55 @@
+# ADR-0031: The mobile client is a Flutter app over the Rust core, published once, and push arrives through a publisher relay that never sees content
+
+**Status:** accepted | 2026-09-10 | Michel Wilhelm
+
+## Context
+
+The [roadmap](../../ROADMAP.md) proposes for phase 3 "a client with an interface (proposal: Flutter, mobile first) usable by a non-technical person", and the phase's exit criterion is a family member using it for thirty days without support. The [implementation plan](../implementation-plan.md) left the decision open in §5 ("App: Flutter or native?") and listed in §2.1 a host module called "Push" that was never written. Requirement RF-32, platform-agnostic push with no content, is mandatory and had no definition: EW-RFC 0004 §6 had three lines of intent, the `pushUrl` field appeared in the session example without being defined anywhere, and the reference host has not one line of push code, nor a token table. Today the device only learns of news with the application open, through the event stream, or by e-mail through the vault, once an hour and without content (ADR-0027).
+
+The web client exists (ADR-0016) and is shipped by the host operator, inside the binary: one binary, one domain. A store app breaks that model. It is published once, by whoever publishes it, and connects to whichever host the person chooses. The consequence that matters is that waking a phone on iOS and Android requires someone holding APNs and FCM credentials, and that someone cannot be every host operator: the key belongs to the app's publisher, and the protocol cannot depend on it.
+
+The second question is how the app speaks the protocol. The plan's §1 promised one Rust core with three shells (binary, wasm, FFI), and that is not what happened: the web client reimplemented the protocol layer in TypeScript, the Python library did the same, and the three validate each other through shared vectors. The Rust core is still the host's view: the derivation of the recovery kit (EW-RFC 0003 §8) exists only in Python and in TypeScript, and pairing, vault and offer verification only in TypeScript. With the app, the choice is between a fourth independent implementation and the FFI the plan always wanted.
+
+The vault (ADR-0024, ADR-0027) is the precedent for what was missing: a service operated by the publisher, outside the protocol, which the host announces without knowing, with a content-free payload and an identical answer in every case.
+
+## Decision
+
+**The mobile client is a Flutter app over the same Rust as the host, published once by the publisher and able to connect to any host. The host speaks only Web Push, and what carries the push to iOS and Android is a publisher relay that never sees content.**
+
+1. **Flutter, one codebase for iOS and Android, mobile first.** This closes decision 2 of the implementation plan's §5.
+2. **The protocol layer is the host's Rust.** `ework-core` plus a new crate, `ework-client`, with no I/O at all: session, batched calls, entries, discovery, identity document, pairing, vault and offer, exposed to Dart through `flutter_rust_bridge`. What does not yet exist in Rust (the BIP-39 kit of EW-RFC 0003 §8, the vault cryptography of ADR-0024, client-side offer verification, Web Push per RFC 8291) is written in Rust, with the vectors Python and TypeScript already have. Network and storage stay in Dart: TLS, proxies and background execution belong to the platform, and are not reimplemented on a phone. The CLI moves onto `ework-client`, so the API has a consumer before the bridge exists. It is the plan's §1 finally realised, and it is what lets phase 2's OpenMLS enter in one place.
+3. **Four packages in this repository**: `impl/ework-client`, `impl/ework-dart` (the bridge, a Flutter plugin), `impl/ework-mobile` (the app) and `impl/ework-push` (the relay). The host's `cargo build` needs no Dart, because the workspace leaves the bridge out of `default-members`; the app touches Rust only through the bridge.
+4. **The app is not embedded in the host.** It is published to the stores by the publisher and connects to whichever host the person chooses, unlike the web client (ADR-0016, point 3). RNF-13 is untouched: the host remains one binary, one domain. The host does not know the app exists, in the same sentence as ADR-0024.
+5. **Push: the host speaks only Web Push** (RFC 8030, RFC 8291, RFC 8292) to the endpoint each device registered, per EW-RFC 0004 §6.2. On store builds that endpoint belongs to a publisher relay, `ework-push`, which forwards the encrypted payload, unopened, to APNs directly on iOS and to FCM on Android without a distributor; with a UnifiedPush distributor installed, there is no relay. The relay is application layer: no RFC names it, a host that has never heard of it is complete, and the wire still depends on neither FCM nor APNs (RNF-16). What the relay learns is which device was woken and when, and nothing beyond that.
+6. **Identifiers.** The app id is `org.eworkprotocol.app` in both stores and the relay lives at `push.eworkprotocol.org`. The app registers the `ework:` scheme with the operating system, which EW-RFC 0001 §2 froze; universal links at `app.eworkprotocol.org/app/...` are a convenience that falls back to the web client when the app is not installed. The protocol's name (EW-RFC 0000, question 1) stays open: the id freezes at the first store upload and does not follow a rename, only the display name does.
+7. **Distribution.** TestFlight internal and Play internal testing first, with the family, which is the phase's exit criterion; a public listing after thirty days of real use. The path without Google stays open: all FCM code behind a single file, so that the `foss` flavour builds without Firebase, with UnifiedPush as the only push on Android and no push on iOS.
+8. **What does not change.** The web client stays, and heavy configuration stays there (the plan's §2.3); the CLI stays; the Python library remains the second implementation that finds defects in the Rust; and `/.well-known/ework` mentions neither app nor relay.
+
+## Alternatives considered
+
+- **Native Swift and Kotlin.** They give the best critical alarm and the highest-priority notification, and the plan itself acknowledges it in §5. Rejected: two codebases for one person, and whatever needs a native API goes through a platform channel from Flutter, which is the alarm's case.
+- **React Native.** It would share the web client's JavaScript ecosystem. Rejected: the web client's cryptography is WebCrypto, which React Native does not have, and background alarms and notifications are weaker there; the roadmap already pointed at Flutter.
+- **A PWA of the web client.** Zero new code. Rejected because EW-RFC 0009 §5 requires alarms from the device's local scheduler, independent of the network, and the web offers no such scheduler: what exists is push, which depends on the network, and the only attempt at a local alarm API (Chrome's Notification Triggers) was discontinued without becoming a standard (https://developer.chrome.com/blog/notification-triggers).
+- **A fourth implementation, in pure Dart.** It was the plan's initial recommendation: no cross toolchain, and an independent implementation finds spec defects, as the Python one found two on its first day. Rejected because it would duplicate the cryptography phase 2 requires to be unique, and because kit, vault, offer and pairing would then live in four places. The argument that remained, finding defects, stays with the Python library, which continues.
+- **Rust with I/O inside the app** (`reqwest` and tokio on the phone). Rejected: TLS, certificate verification, proxies and background execution belong to the platform, and each of them is a known pain when reimplemented underneath it.
+- **A separate repository for the app.** Rejected: the specification wins over the code, and `make check` scans `impl/`; a separate repository lets the app drift from the RFC in silence. Splitting later is cheap, merging later is not.
+- **A relay through FCM only**, which delivers to APNs on its own. Rejected: iOS would pass through Google, and the relay would exist anyway.
+- **No relay, UnifiedPush only.** Rejected for store builds: iOS has no UnifiedPush, and Android without FCM requires the family to install a persistent-connection app. It stays as the `foss` flavour.
+- **Content in the notification**, as almost every app does. Rejected: RF-32 says no content by default, and the content would be visible to the relay, to APNs and to FCM. Wake and fetch keeps all three blind.
+- **Embedding the app in the host**, as the web client is. Impossible in a store, and ADR-0016's argument, one binary and one domain, does not transfer to an artefact the host operator does not publish.
+
+## Consequences
+
+- **It costs** the Flutter toolchain and the cross Rust toolchain for five targets (two for iOS, three for Android), pinned bridge versions, build minutes per target; developer accounts at Apple (https://developer.apple.com/support/compare-memberships/) and Google (https://support.google.com/googleplay/android-developer/answer/6112435), with the fees they charge; store review cycles; one more stack to operate, the relay, with one more set of secrets; custody of the APNs key, which belongs to the whole team, and of the FCM service account; iOS builds that cannot run on the house's Linux runner; and disk pressure on the Mac that compiles.
+- **It gains** a reachable exit criterion for phase 3; a single protocol codebase across host, CLI and app; RF-32 specified end to end; `ework-client` as a library for anyone wanting to write another client; and the path without Google documented instead of implied.
+- **The relay learns**, and this is declared in the style of ADR-0027: which hosts wake which device endpoints and when, the size class and the Web Push `Urgency` header. Never a handle, content or task id: the payload is encrypted to the device's keys (RFC 8291) and is opaque to relay, APNs and FCM. It enters the exhaustive list of EW-RFC 0006 §6 and the threat model (A36).
+- **What only enters once the code exists**: the `platform.toml` components for the new packages, once there is a `pubspec.lock` and the relay crate is in `Cargo.lock`; and the `impl/README.md` table, once they compile.
+- **Two parts of the design handoff** (`design/README.md`) predate decisions that superseded them, and the app follows the decisions: there is no second factor (ADR-0018), and quarantine has Discard and Block, not "Never" (ADR-0020).
+- **Spec comes first.** EW-RFC 0004 §6.2 (push subscription), EW-RFC 0006 §6 (item 8), EW-RFC 0001 §8 (`urn:ework:push`) and RF-38 land together with this ADR; host, relay, core and app come afterwards, in PR stacks ordered by dependency.
+
+## References
+
+- RFC 8030 (Web Push), RFC 8291 (payload encryption), RFC 8292 (VAPID).
+- UnifiedPush: https://unifiedpush.org/
+- flutter_rust_bridge: https://cjycode.com/flutter_rust_bridge/
+- ADR-0016 (web client in its own package), ADR-0024 (vault), ADR-0027 (e-mail notice through the vault), EW-RFC 0004 §6, EW-RFC 0009 §4 and §5.

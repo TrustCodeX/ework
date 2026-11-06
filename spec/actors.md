@@ -112,6 +112,7 @@ A task may state what its resolution requires.
   "onTimeout": "escalate",
   "evidence": "required",
   "messageRequired": ["decline", "fail"],
+  "requiresHumanAbove": [ { "amount": "200.00", "currency": "BRL" } ],
   "autonomousAllowed": false
 }
 ~~~
@@ -123,26 +124,66 @@ A task may state what its resolution requires.
 | `confirmationTimeout` | How long completion may wait for confirmation |
 | `onTimeout` | `escalate`, `fail`, or `auto-confirm` |
 | `evidence` | `none`, `optional`, or `required` |
-| `messageRequired` | Actions that MUST carry a non-empty message |
+| `messageRequired` | Action types that MUST carry a non-empty message: a list, `[]` for none, or `["*"]` for every action |
+| `requiresHumanAbove` | Thresholds, at most one per currency, above which execution MUST be signed by a `human` key |
 | `autonomousAllowed` | Whether a key of class `autonomous` may act at all |
 
-Third-party confirmation is what `confirmedBy` exists for: the carrier says it
-delivered, and the client confirms it received. `evidence` demands an
+An absent or empty `confirmedBy` means **nothing declared**, and an undeclared
+field does not compose: the other side's stands, because intersecting with an
+absence would zero out the requirement of whoever did declare, with nobody having
+said anything. `["executor"]` is the explicit statement that whoever executes
+attests to their own work, is the field's default, and in that case there is no
+third-party confirmation and no waiting state. **The default changes when the
+`executor` is not the `owner`** (an executor proposed by the issuer, see the
+data model document, or a `reassign`): with no `confirmedBy` declared,
+`["owner"]` applies, the executor's `complete` takes the task to
+`awaiting-confirmation`, and the owner confirms or contests. Letting whoever
+does the work attest to it is only acceptable when whoever does it is the
+owner, because then there is no third party to protect (ADR-0029). Third-party confirmation is what a
+populated `confirmedBy` exists for: the carrier says it delivered, and the client
+confirms it received. `evidence` demands an
 evidentiary attachment of kind `proof`, specified in the data model document,
 or the structured result of the machine-to-machine profile, together with the
 completion.
 
+`requiresHumanAbove` is a list here, and not the single object of the delegation
+scope above, because amounts in different currencies do not compare: the
+composition below MUST keep a threshold per currency, and keeping only one would
+silently discard the requirement of whoever declared the other. The threshold that
+applies is the one in the task's currency, and a currency with no declared
+threshold has no ceiling.
+
+`maySign`, specified in the history document, appears in this same object and is
+**not** the issuer's to declare: widening authority belongs to the `owner`.
+Receivers MUST NOT honour `maySign` arriving inside an offer and MUST drop it when
+applying one. Without that rule the issuer wrote `maySign: { "accept": ["issuer"] }`
+into its own offer and signed the acceptance of it, which is precisely the record
+the authority rules exist to prevent, produced by the field meant to correct the
+default.
+
 ## Enforcement
 
-The receiving host MUST refuse an entry that violates the policy. Refusing at
-the host, rather than merely disabling a button in one client, is what makes the
-rule apply to every client, including the autonomous agent that never renders an
-interface.
+Enforcement is not trust in someone else's client, and it is not the host
+either. The argument for the host is a good one: putting the rule in the server
+would make it apply to every client, including the autonomous agent that never
+renders an interface. It fails for the reason this document opens with, which is
+that the server is blind. A rule that depended on the server would hold only
+where the content is in the clear, and would vanish in the encrypted deployment,
+which is the default.
 
-With `humanApproval: "before"`, an action moving the task toward completion MUST
-be signed by a key of class `human`. An `autonomous` key attempting it MUST be
-refused, with a message naming the class of the offending device: diagnosing
-this from a generic authorisation error is unnecessarily hard.
+What closes the gap without a server is the receiver. Whoever applies an entry
+checks before applying, and what fails becomes a **void entry**, specified in the
+history document: recorded, attributable, and without effect. This is the same
+choice the authority rules make, for the same reason. Not depending on someone
+else's client never meant depending on the host; it means every peer checking for
+itself.
+
+Each field closes by its own path, and none of them passes through the
+recipient's server. With `humanApproval: "before"`, an action moving the task
+toward completion MUST be signed by a key of class `human`. An `autonomous` key
+attempting it MUST be refused, with a message naming the class of the offending
+device: diagnosing this from a generic authorisation error is unnecessarily
+hard.
 
 This holds only if someone checks the declaration at the right source. Receivers
 MUST resolve the signing key in the author's current identity document and use
@@ -173,6 +214,16 @@ and not the purpose. The message travels atomically with the transition it
 justifies, as the history document specifies: it is what makes "the agent
 completed and explained why" a guarantee instead of a courtesy.
 
+It is checked by peers, in the two moments the history document sets out:
+whoever composes the entry MUST NOT sign it without the required message, and
+whoever receives one lacking that message MUST treat it as a void entry rather
+than discard it. Discarding would break the `after` chain for every later entry
+referencing it, manufacturing exactly the gap that verifiers are told to read as
+host withholding. The recipient's host is not the checkpoint: under end-to-end
+encryption it reads neither the message nor this policy, and granting it that
+sight would add both to the exhaustive list of observable metadata, trading the
+confidentiality of the whole history for a check the peer already performs.
+
 **An honest limit, and it MUST appear in any material about this mechanism:**
 the key proves **who** signed, never that the person paid attention. A human who
 approves everything on autopilot is still a human in the loop in the protocol's
@@ -191,14 +242,71 @@ NOT apply to a task whose issuer requires `humanApproval: "before"`.
 in their own box and never in the arriving object, and composition MUST be
 performed field by field: the most demanding value for human approval, in the
 order `none` < `after` < `before` < `both`, false winning over true for
-autonomous permission, the union of required-message lists, the lower of two
-thresholds, and the **intersection** for who may confirm, falling back to the
-recipient's list where that intersection is empty.
+autonomous permission, the union of the two `messageRequired` lists, the lower
+threshold of each currency across both lists, and the **intersection** for who
+may confirm, falling back to the recipient's list where that intersection is
+empty.
 
 That last case was missing, and without it the rule did not close: two disjoint
 confirmer lists do not compare by strictness, and an issuer naming itself as
 confirmer was left with no counterparty. Whoever receives decides who confirms in
 their own name.
+
+Composition **only tightens, and is idempotent**: composing again with a policy
+already folded in changes nothing, and the result is no looser than either input
+in any field, with the declared exception of that last row. That property is what
+makes the composed policy checkable by third parties, and the section below
+depends on it.
+
+## The composed policy is published
+
+The composition has an input only one side can see, and that decides where it can
+apply. The issuer's part arrived inside the offer and is in plain view. The
+recipient's part sits in their box.
+
+If the recipient composed silently and judged by that private policy, two peers
+applying the same history would reach different states. The worst case is not the
+wasted record: it is the recipient's own agent signing `complete` on a task whose
+private policy forbids agents. The issuer applies it, because the policy the
+issuer can see allows it; the recipient does not. For one the bill is paid and for
+the other it is not, and the requirement that the history be the same for
+everyone, specified in the history document, is broken by an input that is not in
+the history. A requirement nobody can see does not become protection; it becomes
+state divergence.
+
+Therefore:
+
+1. `ework:executionPolicy` is an **input to the composition, never a judge**. No
+   entry MUST be judged by a policy that is not published.
+2. Whoever hardens **publishes the result**: the composed policy enters the task
+   through an entry carrying the `harden` action, specified in the history
+   document, signed by the `owner`, in the group of the participants it binds.
+   Clients MUST NOT publish it when the composition tightens nothing, and MUST
+   publish it no later than acceptance, which is when it starts to bind the other
+   end.
+3. **An entry is judged by the policy published in its causal past.** Hardening
+   published afterwards MUST NOT reach an earlier entry. This is the line that
+   closes the case of being bound by an unknowable requirement: what is not in
+   your causal past does not bind you, and the author's `after` proves what they
+   knew.
+4. The private policy binds where it can bind without hiding anything from
+   anyone: **at signing time**. The recipient's client, and the recipient's own
+   host, MUST NOT sign or publish an entry that violates it. It is the first of
+   the two moments the history document sets out, applied to the whole policy.
+5. `harden` **only tightens**: a `harden` entry whose policy is not at least as
+   demanding as the published one MUST be treated as a void entry. Any
+   participant checks that alone, because both policies are in the history.
+6. `harden` is **not status**, it is a term of the deal: the status sharing
+   policy of the consent document MUST NOT filter it, and it MUST reach every
+   participant it binds. Filtering it would hand the whole problem back, with the
+   issuer bound by a requirement the recipient's host chose not to deliver.
+
+**What this costs, said up front:** the issuer now sees the projection of the
+recipient's policy onto that task. The projection, not the rule: the issuer learns
+nothing about what it says to other issuers, to other payloads or to other tasks,
+and learns nothing at all when the composition tightens nothing. That is the price
+of a requirement that binds someone who did not write it, and the alternative is
+measured above.
 
 **A revision MUST NOT loosen an accepted policy.** A revision within a series that
 makes the execution policy less demanding in any of those fields MUST require fresh
@@ -206,6 +314,20 @@ explicit acceptance, and clients MUST NOT apply it silently. Otherwise the issue
 offers with human approval required, which the person reads as a safe task, and
 after acceptance sends a revision in the same series turning it into one the agent
 performs alone.
+
+"Less demanding" is the inverse of the composition, field by field. A revision
+loosens when human approval descends the order, when autonomous permission goes
+from false to true, when a required-message list drops an action the published one
+required, when a threshold rises for some currency or disappears, or when
+confirmation by a third party is waived or given to a confirmer the published
+policy did not name.
+
+A revision carries the issuer's policy, and the hardening the recipient published
+still applies: the task's policy after a revision is the composition of the two,
+not the envelope's alone. This is not silent composition, and that is the
+difference that matters: both parts are in the history, so every peer reaches the
+same result. What a revision may move is the issuer's part, and that is what the
+test above decides on.
 
 The consent scope composes from outside the task as well: it MAY require that
 offers from that issuer always demand human approval, regardless of what the
@@ -298,6 +420,18 @@ so often that the person approves without reading. That degrades the protection
 without any technical control noticing. The countermeasures live in interface
 design, which is why they became rules in the enforcement section.
 
+Publishing the composed policy closes an attack that private composition opened on
+its own: with the recipient's policy only in their box, the peer receiving an entry
+and the peer who wrote it derive different states from the same history, and the
+issuer takes as paid a bill the recipient never applied. The conformance suite MUST
+test that two peers receiving the same entries reach the same state, and MUST test
+that a `harden` which loosens enters the history without effect.
+
+`maySign` arriving inside an offer is the other path by which the other side's
+policy became one's own authority: the field exists for the `owner` to widen, and
+honouring it from the issuer let the issuer sign the acceptance of its own offer,
+blessed by the object the issuer itself wrote.
+
 # Privacy Considerations
 
 Actor class is visible to counterparties, and that is deliberate: a party
@@ -315,6 +449,17 @@ of its own, acting through a credential, at the cost of losing the direct chain
 of responsibility. Execution signatures live inside the encrypted content, so
 which key executed what does not leak to the hosts.
 
+Publishing the composed policy reveals to the issuer the **projection** of the
+recipient's policy onto that task, and only to the issuer and the other members of
+that group. They learn that a human is required there, or a justification, or that
+someone else confirms; they do not learn the rule behind it, nor that it holds for
+anyone else, and they learn nothing when the composition tightens nothing. For the
+hosts nothing changes: `harden` is an entry like any other, encrypted to the group,
+and the exhaustive metadata list of the cryptography document is unchanged. Clients
+SHOULD say, at the moment of hardening, that the other end will see it, because an
+announced requirement is what this design trades for a requirement that would not
+hold.
+
 # Open Questions
 
 1. Human presence attestation (a human key in a secure enclave, requiring
@@ -327,3 +472,15 @@ which key executed what does not leak to the hosts.
    Schema enough, or does it need something genuinely executable?
 5. How to present, to ordinary people, that a task was done by their agent and
    not by them.
+6. `evidence`, `confirmationTimeout` and `onTimeout` stayed out of the
+   composition table, because "stricter" is not obvious for the three of them: a
+   short timeout with `onTimeout: "fail"` is harder on whoever executes and
+   softer on whoever waits, and the ordering depends on which of the two the
+   rule protects. `evidence` (`none` < `optional` < `required`) looks like the
+   easy case and joins the table without argument; the other two need that
+   question answered first.
+7. Is the private policy one per box, or one per relationship? One per
+   relationship is what practice asks for, because what makes sense for the bank
+   does not make sense for the school group, and it is also one more dimension
+   for the person to configure without knowing it exists. A safe default for
+   whoever configures nothing remains the requirement.

@@ -17,7 +17,8 @@ a recipient's store.
 
 Three mechanisms make the inversion practical rather than merely stated. First,
 a scoped, revocable, signed grant binds an issuer to a purpose, a payload type,
-a volume ceiling, and an urgency ceiling, all enforced at the edge. Second,
+a volume ceiling, and an urgency ceiling, enforced at the edge where the host
+can see the field and by the peers where it cannot. Second,
 each grant issues a distinct opaque address to its counterparty, which yields
 leak attribution, surgical severance, and non-linkability between issuers.
 Third, an address may be retired without notice, so that ending a relationship
@@ -138,8 +139,21 @@ its own users, making the mechanism decorative.
 
 At delivery, the receiving host verifies that the address resolves, that a grant
 exists in state `granted`, that the envelope carries the capability issued for
-that grant, and that payload type, volume, and urgency are within scope. Failing
-any of these, the envelope never reaches the store.
+that grant, and that the volume for the period is within scope. Failing any of
+these, the envelope never reaches the store.
+
+The edge stops where the ciphertext begins, and the boundary is worth stating
+plainly because it is easy to overclaim. Payload type and purpose travel inside
+the encrypted task, so they are enforced by the peers: the issuer may not emit
+outside its scope, and the recipient's client refuses what arrives outside it.
+The urgency ceiling reaches the edge only through an optional, coarse header
+hint, and is applied to the real value by the recipient's client. What the gate
+guarantees under encryption is therefore precise: a party with no relationship
+delivers nothing, which is decided in the header, while a party that already
+holds a grant and sends outside it is an identified counterparty with a capped
+volume and severance one tap away. An enforcement claim that held only for
+unencrypted deployments would be true of the demonstration and false of the
+design.
 
 **The cost is friction at first contact**, and we consider it inherent. A design
 that made first contact free would reintroduce the problem. What the design can

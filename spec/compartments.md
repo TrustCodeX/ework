@@ -276,7 +276,19 @@ turning the project graph into an inference channel.
   deliberately neutral title and no sensitive payload.
 - The private task declares `ework:updatesMilestone` with the milestone's
   identifier. On completion, the client of a party inside the narrow
-  compartment completes the milestone too.
+  compartment completes the milestone too, whoever completed the task: that
+  party, another member, or an executor who is not the owner, including an
+  issuer completing across the federation edge the offer it executes. The
+  milestone follows the task's state, not the authorship of the entry that
+  completed it.
+- **`ework:updatesMilestone` is a declaration of whoever holds the task in the
+  project, not of whoever offers it.** Receivers MUST NOT honour the field when
+  it arrives in a relationship offer, and MUST discard it when applying the
+  offer, like `maySign` in the autonomous actors document; a series revision by
+  `dedupKey` MUST NOT unlink the milestone the owner linked. A project task
+  delivered to a member on another host is not a relationship offer: it comes
+  from the project itself, and the milestone it declares belongs to the
+  project.
 - Tasks in the wide compartment depend on the **milestone**, never on the
   private task.
 - Clients MUST NOT create a `relatedTo` relation crossing into a compartment the
@@ -402,6 +414,13 @@ compartment has created a leak that no later configuration repairs, which is why
 the default classifications are normative and not suggestions. The conformance
 suite MUST test that a payment payload created inside a multi-member project is
 born sealed.
+
+The milestone is the only bit that crosses the compartment boundary, so the
+decision about which task moves it belongs to those inside the project.
+Honouring `ework:updatesMilestone` arriving in an offer let the issuer choose
+which stage of the person's project counts as done when the issuer's task ends,
+and unblock third parties' work by a decision of someone who does not even
+belong to the project.
 
 A malicious member inside the compartment can still pass on what they see. That
 has no cryptographic solution, it is the limit of every sharing system, and it

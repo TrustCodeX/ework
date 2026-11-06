@@ -57,7 +57,12 @@ Three security defects were found along the way, all of them by connecting the e
 
 ## Phase 3: Real people (target: 2027-Q2)
 
-- A client with an interface (proposal: Flutter, mobile first) usable by a non-technical person: onboarding with a recovery kit, quarantine of requests, accepting offers, urgency and acknowledgement.
+- A mobile client, decided in [ADR-0031](docs/decisions/adr-0031-mobile-client-in-flutter.md) on 2026-09-10: Flutter over the Rust core through FFI, published once and connecting to any host.
+  - [x] Push specification: EW-RFC 0004 §6.2 (Web Push subscription per device), EW-RFC 0006 §6, EW-RFC 0001 §8, RF-38 (2026-09-10).
+  - [ ] Rust client core (`ework-client`) and the bridge to Dart (`ework-dart`).
+  - [ ] The app (`ework-mobile`): onboarding with the recovery kit and the vault, Today and inbox, task with signed actions, quarantine of requests, accepting offers, urgency and acknowledgement with local alarms.
+  - [ ] Push end to end: the host sends Web Push, the publisher's relay (`ework-push`) carries it to APNs and FCM, UnifiedPush on Android.
+  - [ ] TestFlight internal and Play internal testing with the family.
 - Escalation (S4) with a consented contact.
 - Bridges: client-side CalDAV gateway plus `.ics` import; issuer REST gateway v0.
 - Real daily use by the author and family (dogfooding): real bills through their own issuer gateway.
@@ -81,3 +86,4 @@ Three security defects were found along the way, all of them by connecting the e
 | MLS being hard to get right | OpenMLS (an audited library), never home-grown cryptography; phase 2 dedicated to nothing else |
 | Nobody issuing (coldness on the company side) | A trivial issuer gateway plus an email fallback; the "open direct debit" narrative; dogfooding with an issuer of our own |
 | Staying at one user forever | Phase 4 exists precisely for that; bridges from phase 3 onwards; specs written for third parties from day one |
+| Renaming the protocol after the `ework:` scheme is registered in an app and printed in QR codes | `ework:` is frozen (RFC 0001 §2): a rename adds a scheme, never removes one; the store id does not change, only the display name follows |

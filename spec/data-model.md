@@ -80,7 +80,7 @@ and still read the task.
 `recurrenceRules`, `participants`, `relatedTo`, `keywords`, `links`, and
 `alerts` carry their JSCalendar {{RFC8984}} semantics unchanged.
 
-`description` is limited Markdown, with no HTML. `start` marks the planned
+`description` is limited Markdown, specified below. `start` marks the planned
 start or window. `keywords` holds the user's free-form tags, and `links` holds
 typed external URLs. `alerts` carries reminders; their interaction with urgency
 is specified in the urgency document.
@@ -88,6 +88,48 @@ is specified in the urgency document.
 `progress` takes the values `needs-action`, `in-process`, `completed`,
 `cancelled`, `failed`, plus two EWP additions: `blocked` and
 `awaiting-confirmation`.
+
+## The description, and the Markdown that counts in it
+
+The `description` is limited Markdown, and always was: the field carried "no
+HTML" from the first draft without ever saying which Markdown. A rule without a
+list is not implementable, and the reference client spent a year showing raw
+text for want of one. This is the list, and it is normative, because a subset
+each client picks on its own is not a subset.
+
+Clients MUST interpret this, and nothing beyond it: headings of one to three
+`#`, emphasis with `*` and `_`, code in backticks and in a fence of three
+backticks, lists with `-`/`*`/`+` and numbered lists, quotes with `>`, a rule
+of three or more `-`, `*` or `_`, and links in the form `[text](https://example.org)`.
+
+Clients MUST NOT:
+
+1. **Interpret HTML.** It is shown as text. A renderer that produces HTML from
+   the description hands script execution to whoever wrote the task, and
+   whoever writes is any issuer holding consent.
+2. **Load images.** `![alt](https://example.org/photo.png)` is shown as the alt text with the address
+   beside it. A remote image makes the client fetch from the sender's server
+   **on opening the task**, which hands reading, time and network address to
+   the party the crypto document keeps blind. That is the email tracking pixel,
+   and it does not get in here.
+3. **Produce links outside `http`, `https` and `mailto`.** `javascript:` and
+   `data:` are shown as text.
+
+Clients MUST **show the destination host** when the link text does not contain
+it. Link text is chosen by whoever writes and the host is where the person
+goes, and the distance between the two is the cheapest scam there is (the same
+reason as the counter-offer rule in the consent document).
+
+`descriptionContentType` is the JSCalendar field ({{RFC8984}}, Section 4.2.2),
+and EWP changes its default: **absent means `text/markdown`**, not the
+`text/plain` of that document. Defaulting to `text/plain` would rewrite the
+meaning of every description already stored, written under the rule above. An
+explicit `text/plain` turns interpretation off, and exists for what must not be
+interpreted: command output, logs, machine-generated text. An unknown value
+MUST be treated as `text/plain`, which is the direction that fails closed.
+
+Tables, embedded images and HTML were left out; if they come in, they come in
+here, with the reason written down.
 
 ## The two state axes
 
@@ -144,6 +186,14 @@ Where `blocked` is materialized it answers actions as `needs-action`: it is the
 same state seen next to the dependency graph, not a state anyone signs. The
 pending dependency already blocks `start` and `complete` on its own.
 
+Blocking has the fate of incompatibility. A receiver of an already signed
+action that a pending dependency blocks MUST record it as an entry with no
+effect, and whoever is still about to sign (the client, or the writer's host)
+MAY refuse beforehand, saying what is missing. The dependency belongs to the
+task, not to whoever executes it: it also blocks an executor who is not the
+owner, including an issuer executing across the federation edge, even though
+that issuer cannot see the task this one depends on.
+
 A task is **actionable** when its negotiation is accepted or absent, its
 dependencies are satisfied, and its `start` or window has been reached. Clients
 MUST compute actionability locally; it is what orders the list of what can be
@@ -166,8 +216,23 @@ missed deadlines.
 - `issuer` made the offer, and receives status according to the policy.
 - `observer` sees according to the project's policy and does not act.
 
-Delegation, meaning transferring `executor` to a third party, is a registered
-future extension; the role vocabulary already accommodates it.
+**The issuer MAY propose itself as executor, and the proposal only binds after
+acceptance** (ADR-0029). This is the service order, the bill turned around:
+whoever offers is whoever will do the work, and whoever receives decides
+whether to allow it. `participants` in an offer MAY only contain the issuer's
+own identity, with roles within `issuer` and `executor`. Receivers MUST discard
+any other participant or role arriving in an offer, in particular `owner` for
+anyone at all: whoever receives is always `owner`, and is also `executor`
+unless the offer proposed the issuer. Until `accept`, the issuer holds only
+`issuer` (see the history document). A revision by `dedupKey` that adds or
+removes the proposed executor MUST return the negotiation to pending, exactly
+like a revision that changes the payment instrument (see the consent document).
+The `owner` reclaims execution at any time with `reassign` pointing at itself.
+When the executor is not the owner, completion goes through the owner's
+confirmation by default (see the actors document).
+
+Transferring `executor` to someone **outside** the relationship remains a
+registered future extension; the role vocabulary already accommodates it.
 
 # Projections
 
@@ -331,6 +396,20 @@ The task object is signed as part of the envelope that carries it. A task
 modified in the recipient's store is detectable only through the entry chain of
 the history document, not through the task object itself, because the task is
 mutable state by design while history is not.
+
+An interpreted description is the largest attack surface a client has, and the
+section above closes it by construction rather than by filtering: there is no
+path to HTML, no network request on opening, and the link scheme is a closed
+list. A renderer that sanitises HTML after having produced it is always one
+version behind whoever writes it.
+
+`participants` arriving in an offer is the only door through which an issuer
+could write its own authority, and the participants section closes it: outside
+its own identity and the roles `issuer` and `executor`, the receiver discards.
+Without that filter an issuer declared itself `owner` and signed its own
+`accept`, which is the very record ADR-0021 exists to prevent. The reference
+host stored the map unfiltered until 2026-09-10; no reference issuer sent it,
+and that alone is why the hole was never used.
 
 `ework:origin` is asserted by the sender. A receiver MUST NOT treat it as more
 trustworthy than the envelope's signature chain: it records what the sender

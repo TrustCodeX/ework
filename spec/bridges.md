@@ -123,6 +123,12 @@ The design goal is stated as a criterion: **integration in one afternoon, with
 one HTTP call to create the offer and one webhook to learn the outcome.** If the
 simple case needs more than that, the bridge has failed its purpose.
 
+The first two resources have a counterpart in the client API, for any account
+and through the session: `Offer/send` creates the offer and `Offer/sent` lists
+what the account sent, under the same status filter (see the sync document).
+The gateway is the door for whoever integrates a system; the methods are the
+door for whoever uses a client, and the record behind both is the same.
+
 ## Authentication and identity
 
 An API key authenticates the issuer's system against the gateway. **The key is

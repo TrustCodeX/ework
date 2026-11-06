@@ -13,6 +13,9 @@ The project's vocabulary. The Portuguese column is kept because the drafts were 
 | Task offer | oferta (de tarefa) | A task proposed to another identity, subject to acceptance, refusal or a counter proposal. |
 | Consent | consentimento | A first-class object authorising an issuer to deliver offers to a user, with scope, validity, status policy and revocation. |
 | Send capability | credencial de envio | A proof derived from the consent that the issuer presents on every send. |
+| Counter code | código do balcão | The consent offer presented as a QR in the physical world: at the counter, on the printed bill, on a plate. Bearer, and accepted without quarantine. |
+| Permanent offer | código permanente | A counter code with no deadline, which leaves circulation only through the revocation list of the domain that issued it. It is what fits a plate or an engraved QR. |
+| Offer revocation list | lista de revogação (de ofertas) | What a domain publishes with the counter codes it withdrew. It covers the whole domain, so that querying it does not reveal which code was scanned. |
 | Envelope | envelope | The unit of transmission between parties: a routing header in the clear, a body (encrypted by default) and integrity proofs. The "packet". |
 | Typed payload | carga tipada | Structured, versioned data inside a task: payment, scheduling, delivery, approval. |
 | Attachment | anexo | A file or binary datum attached to the task, stored as a hash-addressed blob. |
@@ -45,9 +48,15 @@ The project's vocabulary. The Portuguese column is kept because the drafts were 
 | Circle | círculo | The product name for a compartment ("just me and the carpenter"). It is what the user reads and says. |
 | Actor class | classe de ator | A property of a key: human, assisted, autonomous or system. Only a human key confirms as a human. |
 | Delegation | delegação | A scoped credential that lets an agent act on someone's behalf, with limits and immediate revocation. |
+| Limited Markdown | Markdown limitado | The subset of Markdown a task description may use: no HTML, no image loading, and links only in http, https and mailto. |
+| Proposed executor | executor proposto | The issuer that, in the offer, proposes to execute the task itself. It becomes the executor only when the owner accepts, and the owner may reclaim execution at any time. |
 | Human approval | aprovação humana | A signature by a key of the human class, required before or after execution. |
+| Execution policy | política de execução | What a task requires in order to be executed and completed: human approval, who confirms, what evidence, what justification, whether an agent may act. The issuer's travels inside the task; the recipient's lives in their own box. |
+| Composed policy | política composta | The result of composing the issuer's policy with the recipient's, field by field and strictest wins. It is what judges every entry, which is why it is published. |
+| Harden (a policy) | endurecer | To publish the composed policy into the task, as a signed entry. It only tightens, never loosens, and binds from whoever received it onwards. |
 | Execution confirmation | confirmação de execução | An attestation that the task was in fact done, possibly by someone who did not execute it. Different from an ack. |
 | Evidence | evidência | Proof required at completion: an attachment or a structured result. |
+| Required justification | justificativa exigida | A message mandated alongside certain actions, declared per task in `messageRequired`: a list of action types, `[]` for none, `["*"]` for every action. |
 | Entry | entrada | The unit of a task's history: a message plus an action, signed. An ordinary comment is an entry with a null action. |
 | Action | ação | What the entry does to the task (accept, complete, dispute). Null when the entry is only a message. |
 | Comment | comentário | The colloquial name for an entry, especially one without an action. |
@@ -84,4 +93,19 @@ The project's vocabulary. The Portuguese column is kept because the drafts were 
 | Action authority | autoridade (de uma ação) | The role an identity must hold in the task for the action it signed to take effect. Distinct from authenticity, which is only who signed. |
 | Signed head | cabeça assinada | The periodic publication of the pair (task, hash of the most recent known entry), used to detect a fork in the history. |
 | Delegation proof | prova de delegação | An object signed by the key published in the addresses' domain, authorising a third-party host to serve that domain. |
+| Transport signature | assinatura de transporte | The RFC 9421 signature over a delivery request between hosts, made with the `hostKey` of the `from` domain. It says which host delivered, while the envelope proof says who composed (RFC 0005 §2.1, ADR-0032). |
 | Ciphersuite floor | piso de ciphersuite | The weakest cryptographic suite an implementation MAY accept; below it, the group is refused. |
+| Push subscription | assinatura de push | The Web Push endpoint and the keys a device registers at the host in order to be woken without content (RFC 0004 §6.2). |
+| Push relay | relé de push | A service chosen by the app's publisher that exposes one Web Push endpoint per device and forwards the encrypted push to the vendor's service (APNs, FCM). Outside the protocol (ADR-0031). |
+| UnifiedPush distributor | distribuidor | An application that delivers push on Android without the vendor's service, offering the client a Web Push endpoint. |
+| State hint | dica de estado | The per-type states that travel in a push or an event, so that the client knows what to fetch without receiving content. |
+| Local alarm | alarme local | A reminder scheduled on the device's own clock, independent of network and push (RFC 0009 §5). |
+| Mobile client, app | aplicativo (cliente móvel) | A native phone client, published once by the publisher and able to connect to any host (ADR-0031). |
+| Vault | cofre | An application service that keeps the twelve words encrypted by a password, outside the protocol (ADR-0024). |
+| Pair | parear | To authorise a new device from one already authorised, by comparing numbers and re-signing the identity document (RFC 0003 §5). |
+| Scope (of consent) | escopo (de consentimento) | What an issuer may send: purposes, payload types, quantity and maximum urgency (RFC 0007 §2). |
+| Role | papel | What an identity is in a task: owner, executor, issuer, observer or escalation contact (RFC 0002 §2). |
+| Regime | regime | The interface name of the regulatory profile: the package of requirements under which a relationship operates (RFC 0016). |
+| Act method | método por ato | A client API method that performs one protocol act (granting, revoking, knocking, sending an offer, recording an entry) under the rules of the RFC that defines the act, in place of a generic `set` (RFC 0004 §2, ADR-0033). |
+| Host extension | extensão do host | A method a host serves outside the protocol's catalogue. No client depends on it for what the specification requires (RFC 0004 §2.3). |
+| Sent record | registro do que se mandou | What the sender's account keeps of each task offer: what it wrote when offering and what the other side let come back. Read through `Offer/sent`, with its own state, `Offer` (RFC 0004 §2.2 and §6.1.1). |

@@ -307,6 +307,13 @@ linkability is desired: you want your sister to know it is you.
 | Device key | Root or another verified device | Removal from all encryption groups |
 | Root key | Recovery key, with contestation window | Continuity chain in `previousKeys` |
 
+The table says who authorises, and authorisation is exercised in the box of
+whoever rotates: a session of a verified device, or the root, asks its own host
+for the change. What reaches the counterparty is something else, the continuity
+proof of the rotation declaration, and it cannot come from the root, because the
+counterparty of a relationship address knows that relationship's contact key and
+never the root (ADR-0022).
+
 ## Rotation declaration
 
 ~~~
@@ -319,7 +326,7 @@ linkability is desired: you want your sister to know it is you.
   "reason": "compromise",
   "at": "2026-09-01T10:00:00Z",
   "graceUntil": null,
-  "proofs": [ { "by": "old key or root" }, { "by": "did:key:z6MkCleia..." } ]
+  "proofs": [ { "by": "old contact key" }, { "by": "new contact key" } ]
 }
 ~~~
 
@@ -327,10 +334,40 @@ linkability is desired: you want your sister to know it is you.
 `graceUntil` MUST be null: the old key dies immediately, because keeping the
 address alive for convenience keeps alive the access of whoever stole it. With
 `hygiene` or `migration`, the host SHOULD accept both addresses for up to 30
-days so that envelopes in flight are not lost.
+days so that envelopes in flight are not lost. During the grace, each address
+accepts the capability that belongs to it: the old one, the capability that was
+valid there when the change happened, which is the one envelopes in flight
+carry; the new one, only the new capability, as the consent document binds a
+capability to its address. Once the grace ends, the old address becomes
+`retired`.
 
-The continuity proof is what prevents hijacking: without a signature from the
-old key or the root, nobody redirects another party's address.
+**The continuity proof is what prevents hijacking.** `proofs` MUST carry the
+signature of the old contact key (`oldKey`) and that of the new one (`newKey`),
+both over the declaration without `proofs`. The old one proves that whoever
+changes the address is the party the counterparty knows. The new one proves
+that the announced key belongs to whoever announces it, and not to a third
+party to whom someone wants to tie the relationship. The root MUST NOT sign the
+declaration nor appear in it: it would go to every counterparty carried
+forward, and two of them comparing what they received would know they are
+talking to the same person (ADR-0022).
+
+**A compromised address is not a compromised key.** What leaks on the
+counterparty's side is the address and the capability, and neither of them
+signs: the contact private key stays with whoever granted, in the client and in
+the host that routes the address. That is why its signature still proves
+continuity under `reason: compromise`, which is the common case of an address
+leaked or sold. If the contact key itself leaks, what holds is the delivery
+bound to the domain, described under receiving a declaration, and the residue
+stays open.
+
+**Migrating is granting again.** For each relationship carried forward,
+whoever rotates generates a new contact key and a new address, re-signs the
+consent object with the new `user` and `alias`, and issues a new capability
+bound to the new address, as the consent document does for every grant. The
+body of the `key.rotation` envelope carries the declaration in `rotation`, the
+re-signed consent object in `consent`, and the capability in `capability`. The
+`uid`, the scope, and the state do not change: the relationship is the same
+one, and the counterparty MUST NOT require new consent because of the change.
 
 ## Selective migration
 
@@ -341,12 +378,64 @@ Those who do not receive it are left with a dead address. There is no
 negotiation, no unsubscribe request, and no link confirming that the recipient
 exists.
 
+**Rotation reaches only what the box issued.** The change operates on the
+relationships the box granted, which are those whose address it issued. In a
+relationship where the box is the issuer, the address belongs to the other end
+and lives on that end's host: there is nothing to change, and the host MUST
+leave it out of the rotation, neither carrying it forward nor retiring it, even
+when the request names it.
+
 This is the mechanism that gives the recipient leverage. In one operation, an
 identity can replace every address it holds and carry forward only the
 relationships it wants, leaving the rest with identifiers that resolve to
 nothing. Clients MUST make the set of those left behind explicit before
 executing, by name, because the operation is not reversible from the recipient's
 side: restoring a relationship requires the counterparty to knock again.
+
+## Receiving a declaration
+
+The counterparty's host MUST honour the declaration, as the federation document
+says, and honouring has limits:
+
+1. **Only its own record, and only on the issuer's side.** The declaration
+   applies to the record of the destination box, and only to a relationship in
+   which that box is the issuer: the one whose address, `subject`, the box did
+   not issue. On a host that serves both ends, the two records of the same
+   relationship live in the same database under the same `uid`, and the
+   grantor's record changes through the rotation made in the grantor's box,
+   never through an envelope.
+2. **Proof before effect.** `oldKey` MUST be the contact key that relationship
+   delivered in its `consent.grant`, both signatures of the declaration MUST
+   verify, and the consent object and capability in the body MUST belong to
+   that relationship, with the same `uid`, signed by `newKey` and bound to
+   `newAlias`. And the declaration MUST arrive from the domain of `subject`:
+   whoever delivers it is the host that routes the old address, and since
+   delivery is bound to the `hostKey` of the domain of `from`, as the
+   federation document specifies, nobody else can deliver it. That is what
+   makes the contact key alone not enough to take the relationship away.
+3. **What changes.** The delivery address moves from `subject` to `newAlias`,
+   and the contact key, the consent object, and the capability become those of
+   the body. Whatever the box keeps pointing at `subject` as the destination of
+   that relationship moves with it: that is where the issuer speaks from later
+   about what it already sent (ADR-0029).
+4. **Same response, with or without effect.** Answering differently would tell
+   whoever forged the declaration whether that box holds a relationship with
+   that address, and linking a relationship's address to a handle is what
+   per-relationship addressing exists to prevent. Refusal as `malformed` MAY be
+   used only for what is decided without looking at any relationship: a
+   declaration missing its fields, or whose signatures do not match the keys it
+   declares itself.
+
+The rule is written down because the reference implementation failed at both
+ends. On the side that rotates, the change also reached relationships in which
+the account is the issuer: it created an address in the account's own box and
+pointed the account's record at it, or silently retired the account's own
+channel for sending. The new address was born without a contact key, which cut
+off the status returned to the issuer, and the 30-day grace lasted one minute.
+On the receiving side, no host handled `key.rotation`: the envelope came back as
+a server error and sat in the retry queue, selective migration notified nobody,
+and whoever should have been carried forward hit the dead address as soon as
+the grace ended.
 
 ## No oracle
 
@@ -511,6 +600,18 @@ key and a key claiming another party's domain.
 The absence of an oracle is a security decision, not a usability one. Any
 differentiation in response would be turned into a list-validation tool.
 
+The continuity proof of a rotation declaration is the old contact key because it
+is the only key the counterparty knows. It still holds when what leaked was the
+address or the capability, which is the common compromise, because neither of
+them signs. If the contact key itself leaks, whoever holds it produces a
+declaration as valid as the owner's but cannot deliver it: it is only valid
+when it arrives from the domain of `subject`, and delivery from that domain is
+bound to its `hostKey`. What remains is whoever holds the key and the host
+together, which is the very host that routes the address: that is the residue
+recorded in the open questions. Receiving a declaration only into the
+box's own record, on the issuer's side, ensures that not even a valid
+declaration writes into another account's record.
+
 # Privacy Considerations
 
 Per-relationship addressing is the principal privacy mechanism of the protocol
@@ -522,6 +623,13 @@ removed the benefit while keeping the cost.
 The public identity document carries the operational minimum, but the device
 list still exposes cardinality; opaque device ids are permitted for that
 reason.
+
+A rotation declaration goes only to that relationship's counterparty and
+carries only what belongs to the relationship: the new address, the new key,
+and the re-signed agreement. Without the root, rotating several relationships
+in one operation gives two issuers no way to prove the person is the same. The
+residue is timing: the declarations of one rotation leave together, and two
+issuers comparing when they received them may suspect, without proving.
 
 # Open Questions
 
@@ -539,6 +647,20 @@ reason.
    who may rotate.
 5. **A neutral identity directory** (the lesson of AT Protocol's PLC
    association): when, and under what governance.
+6. **The contact key and the host together.** The continuity proof of a
+   rotation declaration is the old contact key, and requiring the declaration
+   to arrive from the domain of `subject` makes the key alone not enough. What
+   remains is whoever holds both, and the host that routes the address does: it
+   keeps the contact key and it is the one that delivers. The authority table
+   says the compromised key never authorises its own replacement, and for the
+   counterparty of a relationship address there is no other key to check,
+   because the root never reaches it. The path under study is a pre-rotation
+   commitment: the hash of the next contact key delivered already in the
+   `consent.grant`, with that key kept only by the client, so that replacement
+   depends on a secret the host never had. It stays open because it changes
+   the `consent.grant` and what each end keeps of the relationship, and because
+   today it is the reference implementation's host that generates and keeps the
+   contact key.
 
 # IANA Considerations
 

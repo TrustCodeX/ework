@@ -112,9 +112,9 @@ it.
 | Understand the idea and judge it | [The vision](docs/vision.md), then [consent](spec/consent.md) |
 | Know what already exists and why this is not it | [The landscape](docs/prior-art.md) |
 | Implement a client or a host | [The specification](spec/README.md), starting at `core` |
-| Attack it | [The threat model](docs/threat-model.md), 34 adversaries with residual risks |
+| Attack it | [The threat model](docs/threat-model.md), 36 adversaries with residual risks |
 | See how the pieces fit | [The architecture](docs/architecture.md) |
-| Know why a decision was made | [The decisions](docs/decisions/adr-0001-open-federated-protocol.md), 24 ADRs, each with the alternatives it rejected and why |
+| Know why a decision was made | [The decisions](docs/decisions/adr-0001-open-federated-protocol.md), 33 ADRs, each with the alternatives it rejected and why |
 | Look up a term | [The glossary](docs/glossary.md) |
 | Know what is coming | [The roadmap](ROADMAP.md) |
 

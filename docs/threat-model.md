@@ -53,8 +53,8 @@ Residual: the leak of the data itself (name, tax ID, amount owed) already happen
 
 ### A10. A legitimate issuer that turns into marketing
 The company with consent to bill starts sending promotions, or begins using high urgency to force attention.
-Mitigations: a purpose declared per offer within the scope (RFC 0007 §2); the operational test of what is not a task (RFC 0011 §6); rate and urgency limits at the edge; silent retirement as an answer that requires no negotiation. The economics invert: insisting costs the whole relationship, with no warning and no appeal.
-Residual: the protocol does not detect marketing semantically, and does not pretend to.
+Mitigations: a purpose declared per offer within the scope (RFC 0007 §2); the operational test of what is not a task (RFC 0011 §6); the rate limit at the edge; payload type and the urgency ceiling checked by the recipient (RFC 0008 §7, RFC 0009 §1), since neither is visible to the host under end-to-end encryption; silent retirement as an answer that requires no negotiation. The economics invert: insisting costs the whole relationship, with no warning and no appeal.
+Residual: the protocol does not detect marketing semantically, and does not pretend to. And an out-of-scope payload is refused **after** delivery, not before it: the envelope arrived, spent the month's quota, and showed up as a violation of that relationship. What the edge prevents is delivery by a stranger; a known party that abuses is a conformance problem, with a name, an address, and severance one tap away.
 
 ### A11. Rotation hijacking
 An attacker tries to redirect someone's address by publishing a forged rotation.
@@ -62,7 +62,7 @@ Mitigations: replacement requires a signature from the old key or from the root,
 
 ### A12. Address list validation
 A collector probes addresses to discover which ones exist, which is the product the spam industry buys.
-**The host as a network proxy.** Any field where the client says "go and fetch this" or "notify over there" lends the client the host's network position, which usually reaches things the client cannot: an internal service, the cloud metadata endpoint, the LAN gateway. That is classic SSRF, and in EWP it shows up in the gateway webhook (RFC 0010 §3) and in any fetch of a client-supplied URL. Mitigation: refuse loopback, private ranges, link-local, CGNAT and reserved names before making any request. Found in the reference implementation while reviewing the gateway.
+**The host as a network proxy.** Any field where the client says "go and fetch this" or "notify over there" lends the client the host's network position, which usually reaches things the client cannot: an internal service, the cloud metadata endpoint, the LAN gateway. That is classic SSRF, and in EWP it shows up in the gateway webhook (RFC 0010 §3) and in any fetch of a client-supplied URL. Mitigation: refuse loopback, private ranges, link-local, CGNAT and reserved names before making any request. Found in the reference implementation while reviewing the gateway. The transport signature added a case that does not even need an account: the inbox fetches the `hostKey` of the domain `from` names, and whoever writes `from` is a party that has proved nothing yet (RFC 0005 §2.1). Besides the same refusal, the fetch is bounded in time, size and frequency, and the key is kept. Residual: the refusal checks names and literal IPs, and an external domain that resolves to an internal address gets past it.
 
 Mitigation: absence of an oracle (RFC 0003 §7.4, RFC 0011 §4.2). An identical response in code, message and timing for an address that never existed, one that was retired, one frozen for deletion and one revoked. Implementations MUST test equality of timing, not only of code, and MUST cover every public endpoint: the reference implementation leaked exactly here, with delivery refusing while the handle proof went on publishing the document. One honest endpoint and one careless one add up to a whole oracle.
 
@@ -163,9 +163,19 @@ Residual: the issuer loses the ability to prove to a third party which global id
 A single member of a project switches on assisted mode in their own box, and their host starts reading in the clear the tasks of the circles they belong to, without anyone else in the circle knowing.
 Mitigation: assisted mode MUST NOT reach a group of which the identity is not the sole holder, and a downgrade affecting someone else's project becomes a signed entry in that project's log (RFC 0006 §7, RFC 0013 §8). The anti-requirement of never degrading E2EE silently held for whoever switches it on, and was silent for everyone else.
 
+### A35. The invisible requirement, and the state divergence it produces
+The recipient's execution policy lives in their own box (RFC 0014 §3). If it judged someone else's entry without being published, two peers applying the same history would reach different states: the recipient's own agent signs `complete`, the issuer applies it because the policy the issuer can see allows it, and the recipient does not. For one the bill is paid and for the other it is not, and nothing raises a flag. This is not an external adversary: it is the wrong design producing the damage on its own.
+Mitigation: whoever hardens publishes the composed policy into the task, as a `harden` entry, and an entry is judged by the policy published in its causal past (RFC 0014 §3.1, ADR-0025). The private policy still applies where it hides nothing from anyone, which is at signing time: the signer's own client and host refuse to publish an entry that violates it. A requirement nobody can see does not become protection.
+Residual: the issuer now sees the projection of that policy onto that task. That is the declared cost, and the alternative is the divergence above.
+
+### A36. Curious or compromised push service or relay
+Push wakes the device through a vendor's service or through a relay the app's publisher operates (RFC 0004 §6.2.4). Both see what Web Push lets them see: which device was woken, when, the size class and the `Urgency` header; with the clear hint enabled (RFC 0009 §4), the urgency. Neither decrypts the payload (RFC 8291) nor learns box, sender or task. Whoever compromises the publisher's APNs key or FCM account can wake or flood devices, never read.
+Mitigation: a content-free payload by construction; an opt-in urgency hint; the subscription URL treated as a capability and discarded at the first push that does not decrypt; rate limiting per VAPID key and per endpoint at the relay; the subscription deleted together with the device.
+Residual: the cadence of wake-ups and the escalation's `Urgency: high`, which are already on the RFC 0006 §6 list. A relay that is down degrades to the local alarms and to the event stream with the application open.
+
 ## 3. Metadata: what leaks even with E2EE
 
-The exhaustive list is maintained in RFC 0006. In summary: from and to addresses, envelope types, timestamps, approximate sizes, opaque group and epoch ids, and the urgency hint (if the user enables it). Future mitigations under study: size padding, temporal batching of delivery, sender obfuscation (sealed sender). None promised for v0.1: better an honest draft than a promise with a hole in it.
+The exhaustive list is maintained in RFC 0006. In summary: from and to addresses, envelope types, timestamps, approximate sizes, opaque group and epoch ids, the urgency hint (if the user enables it), the push endpoint per device and the cadence of wake-ups (RFC 0004 §6.2). Future mitigations under study: size padding, temporal batching of delivery, sender obfuscation (sealed sender). None promised for v0.1: better an honest draft than a promise with a hole in it.
 
 ## 4. Security anti-requirements
 

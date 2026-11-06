@@ -44,6 +44,8 @@ Conventions: **RF** functional requirement, **RNF** non-functional requirement. 
 | RF-75 | Evidence that can be required at completion (a supporting attachment or a structured result) | [S] | RFC 0014 |
 | RF-76 | A machine-to-machine profile with acceptance criteria, a structured result and idempotency | [S] | RFC 0014 |
 | RF-77 | Composition of policies by taking the stricter of issuer and recipient | [M] | RFC 0014 |
+| RF-78 | Executor proposed by the issuer in the offer, bound only by acceptance, reclaimable by the owner, and completion confirmed by the owner by default | [S] | RFC 0002, 0014, 0015 |
+| RF-79 | Description in limited Markdown, with a normative subset, no HTML and no image loading, and `text/plain` to turn interpretation off | [M] | RFC 0002 |
 | RF-80 | The entry as the unit of history: message and action in the same signed object, a null action being an ordinary comment | [M] | RFC 0015 |
 | RF-81 | The entry's audience by group: a private note, the relationship with the issuer, or the project circle | [M] | RFC 0015 |
 | RF-82 | A registered vocabulary of actions, with an unknown action ignored without discarding the entry | [M] | RFC 0015 |
@@ -78,7 +80,8 @@ Conventions: **RF** functional requirement, **RNF** non-functional requirement. 
 | RF-31 | Server-to-server delivery with a signed envelope, retries with backoff defined in the specification, and a delivery receipt | [M] | RFC 0005 |
 | RF-36 | Two-layer discovery: an SRV record `_ework._tcp` locates the host, an HTTPS document describes the key and capabilities | [M] | RFC 0001 |
 | RF-37 | The host declares in `addressDomain` which addresses it serves, and the discoverer checks before trusting | [M] | RFC 0001 |
-| RF-32 | Platform-agnostic push (Web Push, UnifiedPush), with no content in the push by default | [M] | RFC 0004, 0009 |
+| RF-32 | Platform-agnostic push (Web Push, UnifiedPush), with no content in the push by default; where the platform requires the vendor's service, the bridge is a relay outside the protocol | [M] | RFC 0004, 0009 |
+| RF-38 | Push subscription per device, bound to the session's device and deleted with its revocation; the host advertises `urn:ework:push`, and the client hides the setting without it | [M] | RFC 0004, 0001 |
 | RF-33 | Offline-first operation in the clients, with reconciliation on reconnecting | [S] | RFC 0004 |
 | RF-34 | Complete account export (tasks, consents, blobs, identity) in a documented format | [M] | RFC 0004 |
 | RF-35 | Self-authenticating objects: the author's signature on the object, in addition to the transport signature | [M] | RFC 0001, 0005 |
@@ -123,7 +126,7 @@ Conventions: **RF** functional requirement, **RNF** non-functional requirement. 
 
 | ID | Requirement | Prio | Where |
 |---|---|---|---|
-| RNF-10 | An HTTPS substrate (HTTP/2 or better) and WebSocket; no exotic port required | [M] | RFC 0001 |
+| RNF-10 | An HTTPS substrate (HTTP/2 or better), with an event stream over SSE and optional WebSocket; no exotic port required | [M] | RFC 0001, 0004 |
 | RNF-11 | Blobs travel as raw binary (no base64), addressed by hash, with resumable upload and ranged download | [M] | RFC 0004 |
 | RNF-12 | Envelopes in canonical JSON; optional negotiable CBOR encoding | [C] | RFC 0001 |
 | RNF-13 | A reference host operable by a hobbyist: one binary, one database, one domain | [S] | outside the spec |

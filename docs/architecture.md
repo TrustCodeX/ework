@@ -18,7 +18,7 @@ This document is the mental map of the system. The normative definition of each 
 ├─────────────────────────────────────────────────────────────┤
 │ L1  Identity: keys, handles, discovery                      │  RFC 0003
 ├─────────────────────────────────────────────────────────────┤
-│ L0  Transport: HTTPS/2+, WebSocket, binary blobs, push      │  RFC 0001, 0004
+│ L0  Transport: HTTPS/2+, SSE, binary blobs, push            │  RFC 0001, 0004
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -104,7 +104,7 @@ Whoever leaves the group (Remove) stops opening the following packets right away
 
 ## 7. Synchronisation and conflict
 
-- **Client to host:** the JMAP model: exact state per type (`Task/changes` since a state string), batched calls, optimistic writes with `ifInState`.
+- **Client to host:** from JMAP, the exact state per type and batched calls; in place of the generic `set`, one method per act (ADR-0033). `Task/changes` gives the tasks' delta since a state string, the short collections are reread when their state changes, and concurrent writes to shared content resolve through the chaining of entries (RFC 0004 §2 and §3).
 - **Multi-device E2EE:** underneath the sync, each E2EE box is an encrypted operation log (TaskChampion style): a linear chain of versions; conflicts resolve by rebasing on the client. The host orders bytes it does not read.
 - **Assisted mode:** the host can merge per property and index for search. It is the same API, with more capabilities announced in the session.
 

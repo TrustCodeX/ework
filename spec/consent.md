@@ -101,15 +101,25 @@ the UI as granting**, and the effect at the edge is immediate.
 | Field | Meaning | Enforced by |
 |---|---|---|
 | `purposes` | Declared purposes, free-form but registered where possible | Recipient client |
-| `payloadTypes` | Typed payloads the issuer may send | Receiving host |
+| `payloadTypes` | Typed payloads the issuer may send | Issuer, then recipient client |
 | `maxPerMonth` | Volume ceiling for the series | Receiving host |
-| `maxUrgency` | Highest urgency the issuer may claim | Receiving host |
-| `recurringSeries` | Whether repeated deliveries under one `dedupKey` are allowed | Receiving host |
+| `maxUrgency` | Highest urgency the issuer may claim | Recipient client; the host only over `urgencyHint` |
+| `recurringSeries` | Whether repeated deliveries under one `dedupKey` are allowed | Recipient client |
 | `regulatoryProfile` | Regime the issuer declares it operates under | Displayed, not enforced |
+
+**The column follows what each party can see, not what would be convenient.**
+The host enforces the fields that live in the header or in state it already
+holds, and those are the ones that survive encryption unchanged. Everything
+else lives inside the encrypted task, and is enforced by the peers: the payload
+types by the rule in the payloads document, the purposes and the series
+semantics by the recipient's client, and the urgency ceiling by the recipient's
+client always, plus the edge whenever the optional `urgencyHint` declares a level
+above the ceiling.
 
 Scope fields that the receiving host enforces MUST be checked at the edge.
 Scope fields that only the client can evaluate MUST be presented to the
-recipient before the grant is made, not after.
+recipient before the grant is made, not after, and MUST NOT be described to the
+recipient as enforced by the host.
 
 `maxPerWeek` MAY replace `maxPerMonth` where the series runs on a weekly
 rhythm; either way it is a rate the recipient's host applies at the edge.
@@ -121,6 +131,37 @@ and `critical` requires a screen of its own, as the urgency document specifies.
 NOT present an unregistered profile identifier as if it carried meaning. An
 identifier invented by the issuer, displayed alongside registered ones, would
 borrow a credibility it has not earned.
+
+**An absent field has a single meaning, and it is not always "nothing".** Three
+parties read the scope: the issuer before sending, the receiving edge, and the
+recipient's client. All three MUST read absence the same way:
+
+- `purposes` and `payloadTypes`, when absent or empty, **do not restrict** that
+  axis: the issuer may send any purpose, or any payload type. A list closes the
+  axis when it carries at least one item, and only then. This is the reading the
+  examples in this document already assume: the in-person offer, which exists
+  to send bills, carries no `payloadTypes`.
+- `maxPerMonth` (or `maxPerWeek`), when absent or zero, means **no limit**, not
+  "none per month".
+- `maxUrgency`, when absent, is **`normal`**, the same ceiling a relationship
+  between people starts with. Absence here is not the lack of a ceiling.
+- `recurringSeries`, when absent, is **false**.
+
+**Emptying a list does not narrow it: it opens it.** Whoever narrows a request
+item by item, at grant time or when revising a live grant, expects that
+unticking the last purpose leaves "none", and it leaves all of them. Therefore:
+
+- a granted scope whose list is empty or absent does NOT fit within a request
+  that carried that list, and whoever checks the ceiling MUST treat it as a
+  widening. This holds for the client and for the host, which MUST NOT rely on
+  the client's check;
+- clients MUST NOT let the recipient untick the last item of a list the request
+  carried: the screen would say "none" and the edge would read "all";
+- a recipient who wants none of the requested purposes does not narrow: they
+  decline, or, if the relationship already exists, end it.
+
+Zero in the quantity is the same trap seen from the other side: the smaller
+number is the more permissive, and replacing "4 per month" with zero widens.
 
 ## Status policy
 
@@ -136,6 +177,12 @@ borrow a credibility it has not earned.
 The protocol default is `receipt`. Status beyond the configured level MUST NOT
 leave the recipient's host: the filter runs in the client, because the content
 is end-to-end encrypted, and is checked again at the edge.
+
+A comment directed at the issuer is declared by its writer, and while there is no
+relationship group the writer's host forwards it only at the `full` level, as
+the history document describes. The relationship's level is revised like the
+rest of the agreement (see "Revising the terms without ending the
+relationship").
 
 A task MAY carry `statusSharing`, which narrows the level for that task alone.
 **The effective level is the lower of the two, and implementations MUST compute
@@ -197,6 +244,18 @@ enforce two agreements in parallel, adding their quotas together. The
 one-pending rule above governs concurrency, not accumulation: without this
 rule, knocking again each month would double the ceiling, counting on the
 distracted yes of someone looking at two identical cards.
+
+**The live relationship that counts is the one the destination box GRANTED to
+whoever knocks**, the one whose address that box itself issued, by the same
+side rule used for ending a relationship. The relationship in the opposite
+direction does not count: if the destination box is the one sending to whoever
+knocks, the knocker is asking to send for the first time, the knock is an
+entry, and accepting it creates the return relationship, with an address of its
+own in the box that grants now. Between the same two ends, each direction is a
+relationship of its own, with its own address, agreement, capability, and
+`uid`, and neither ever revises the other. The same holds for the in-person
+offer: the existing relationship that prevents a second one is the one the
+scanning party granted, not one in which that party is the sender.
 
 Accepting the revision replaces the scope of the existing consent, **keeps the
 address**, and issues a new capability. The newly requested scope becomes the
@@ -264,15 +323,105 @@ Clients MUST, before showing any accept button:
    displays "Acme Energy" in large type with the domain in small print hands
    the attack over for free: all it takes is a QR pasted over the original at
    the counter.
-3. **Refuse an expired offer.** `expiresAt` is mandatory and MUST NOT exceed 30
-   days, because a printed QR outlives the contract that justified it.
+3. **Check how the code ends.** Every offer MUST carry either a deadline
+   (`expiresAt`, 30 days at most) or declared permanence (`permanent: true`),
+   and never both at once. An expired offer MUST be refused. An offer carrying
+   neither a deadline nor permanence MUST be refused as well: a bearer code
+   with no declared end is a code nobody knows how to take out of circulation.
+   What permanence demands of the issuer is in the section below.
 4. **Show the whole scope** before acceptance, in the same words as the
    quarantine screen. The in-person path is faster, and cannot be less
    informed.
 
+**An offer without `scope` is an offer with every axis absent.** Readers MUST
+read it as the scope rules say: any purpose, any payload type, no limit on
+quantity, urgency up to `normal`, and no series. That is what the screen in
+item 4 shows, and that, and nothing more, is what the acceptance grants.
+Readers MUST NOT replace the absence with a default scope of their own,
+narrower or wider: the reference implementation granted the billing terms to
+every offer without a scope while its screens showed the reading above, and
+what a person accepted at the counter was not what they had read. Issuers
+SHOULD write the scope, because absence is the widest terms there are (open
+question 8).
+
 Hosts MUST apply the same checks when receiving the acceptance, and MUST NOT
 trust the verification done by the client: a modified client is precisely the
 case that verification exists to cover.
+
+# A Code That Never Expires, and the List That Kills It
+
+The 30 day ceiling was born of a correct observation: a printed QR outlives the
+contract that justified it, and a bearer code that lasts forever is a code
+nobody can take out of circulation afterwards. The conclusion was the wrong
+part. A short deadline was never the control mechanism, it was the only
+mechanism that existed while the code was thought of as paper, and its bill
+lands entirely on whoever prints: counter plates, shop window stickers,
+engraved tags, QR codes printed in three dimensions. None of that gets
+reissued every 30 days. Whoever needs such a code either stays out of the
+protocol, or leaves an expired plate where it is, teaching customers that the
+counter code tends to fail.
+
+Permanence is acceptable when there is a way to kill the code afterwards, and
+there is one that adds nothing to the reader's path: whoever scans must already
+query the `from` domain to learn which key signed (item 1 above), and is
+therefore online by construction. What is missing is for the domain to publish
+what it already knows.
+
+**The revocation list.** A domain that issues permanent offers MUST publish:
+
+    GET https://<domain>/.well-known/ework/offers/revoked
+
+    { "revoked": ["018f4d2c-9a10-7cc3-b7aa-3e2f19d10a01"] }
+
+Those are the `id`s of the offer envelopes that domain revoked. The list covers
+the whole domain, rather than answering a query about the offer in the reader's
+hand: that way the reader tells nobody which code was scanned, and no issuer
+learns how many cameras were pointed at which plate before accepting. It is the
+same reasoning that closed the handle proof lookup desk in the identity
+document.
+
+Clients MUST, still before the accept button:
+
+- **offer with `permanent: true`:** fetch the list and refuse the offer whose
+  `id` is in it, and refuse as well when the list cannot be fetched or cannot
+  be understood. Permanence without published revocation is a code with no
+  brakes, and a domain that does not publish the list does not issue forever;
+- **offer with `expiresAt`:** fetch the list and refuse an `id` that is in it.
+  Here the absence of the list MUST NOT refuse the offer, because the deadline
+  already bounds the damage and the deadline path has to keep working against a
+  domain that never heard of this section.
+
+Hosts MUST redo both checks when receiving the acceptance, for the usual
+reason: a modified client is the case verification exists to cover.
+
+Clients and hosts MAY cache the list, and SHOULD NOT hold it for more than five
+minutes. The gap between revoking and the code ceasing to work is the number
+the organisation will want on the day something goes wrong at the counter.
+
+**Revocation is final.** An `id` that entered the list MUST NOT leave it. A list
+that shrinks resurrects a code already declared dead, and resurrects it first in
+readers with a stale cache, who are exactly the ones who will not notice.
+Whoever revoked by mistake issues another code; whoever needs a code that can be
+suspended and resumed is asking for a short deadline, and a short deadline is
+what `expiresAt` does.
+
+**Revoking the offer touches no relationship.** Revocation prevents new
+acceptances and does not touch a Consent already granted: whoever accepted
+yesterday holds a Consent, and a Consent ends through the section on ending a
+relationship, with the consequences described there. Two objects and two
+actions, and confusing them would let one tap in the wrong place cut off the
+entire customer base.
+
+**The account leaves, the list stays.** The offer is requested by an
+organisation account, and accounts can be deleted, as the compliance document
+specifies. Permanence is the issuer's promise, and whoever leaves stops
+answering for it, so when the account is destroyed the host MUST put on the
+list every offer of that account that is still valid, permanent or with a
+deadline yet to come, and MUST keep on the list the ones already there. Of each
+offer's record it keeps only the `id`. Revocation waits for destruction, not for
+the deletion request: revocation is final, and whoever cancels within the
+window gets the account back with its plates still working. Until then,
+acceptance meets the frozen account, like any envelope addressed to it.
 
 # Declining a Request: Discard and Block
 
@@ -343,16 +492,75 @@ never: granting what nobody asked for invents permission the recipient has no
 way to evaluate, because there was no request to read. Hosts MUST therefore
 retain the requested scope alongside the granted one.
 
+**The ceiling moves only by the issuer's request.** What shifts it is the
+revision knock, carrying the newly requested scope. A revision requested by
+whoever granted carries the new scope and no ceiling, and the host MUST check
+it against the ceiling it stored: a ceiling sent along with the scope is the
+client checking itself, which is the check the scope rules tell the host not to
+accept. The reference implementation accepted such a ceiling in the revision
+request itself, in a field that existed for the knock, and with it a modified
+client granted beyond the request and left the widened ceiling recorded.
+
+**The status level is revised too, and without a ceiling.** A revision
+requested by whoever granted MAY carry `statusPolicy` with any level of the
+status policy, up or down, and the scope stays as it is when the level comes
+alone. There is no requested ceiling here because the level is not a permission
+the issuer asks for: it is what this end chooses to tell about what it does,
+and telling more authorises the issuer to nothing. The new level applies to what
+leaves after the revision, in new tasks and in existing ones, and does not
+resend what was held back before: a comment kept as a personal note stays
+personal. Otherwise, revising the level is like revising the scope: the consent
+is re-signed with the contact key, a new capability is issued and the issuer is
+told.
+
 **Revision issues a new capability and the issuer is told**, with the revised
 consent and the replacement capability, by the same path as the original grant.
 This is not an exception to the protocol's silence: the issuer already knows
-the relationship exists, the border would already answer its first out-of-scope
-send with a refusal, and letting it find out by trial would turn a legitimate
+the relationship exists, its first send with the old capability already hits the
+edge by `scopeHash`, and letting it find out by trial would turn a legitimate
 tightening into blind debugging. Whoever wants the other side to know nothing
 has the silent retirement path, which is where silence lives.
 
 The previous capability dies immediately, by `scopeHash`: it describes an
 agreement that no longer holds.
+
+**Revising belongs to whoever granted**, for the same reason ending does: the
+agreement is the permission that party gave, the contact key that re-signs it
+is the key of the address that party issued, and the issuer's side has neither.
+Hosts therefore:
+
+1. MUST refuse a revision request made from the issuer's side, which is the
+   side whose box did not issue the relationship's address. Accepting a
+   revision knock revises the relationship the knock rules above say it
+   revises, and no other.
+2. MUST re-sign with the contact key of the address issued by the revising
+   party's own box, and with no other. On a host that serves both ends, the
+   other account's key lives in the same database, and re-signing with it is
+   speaking for someone who asked for nothing.
+3. MUST NOT apply a received `consent.grant` to a relationship in which the
+   recipient is the one who granted, nor record as a new relationship a grant
+   whose address was issued by the destination box itself. A grant travels
+   from whoever granted to the issuer, as the core document's envelope registry
+   says, and one that reaches the grantor's record is the other end trying to
+   rewrite the agreement it received, starting with the scope the edge
+   enforces. The response MUST be the same whether or not the envelope had an
+   effect, for the reason given for revocations under "Ending belongs to
+   whoever granted".
+
+The rule is written down because the reference implementation took a knock in
+the opposite direction as a revision. The search for the live relationship
+looked at the other end's name, which the issuer's record also keeps, and found
+the outbound relationship. Between different hosts, accepting found no contact
+key to re-sign with, and the accepting party could never let the other end
+send. On a host serving both ends it found one, and it was the other account's:
+the outbound agreement was re-signed with it, and the `consent.grant` landed in
+the record of whoever had granted it.
+
+Telling the issuer matters more once the payloads document assigns each check to
+a party. Holding the new capability, an issuer that keeps sending a payload type
+the tightening removed sails past the edge, which does not read payloads, and is
+refused only at the far end. Without the notice it would not know what changed:
+it would accumulate invisible refusals believing it delivers well.
 
 That choice has a consequence the specification must handle. The knocking party
 receives a grant arriving from an opaque identifier and has no way, on its own,
@@ -381,11 +589,21 @@ box:
 1. The target address exists and is `active`.
 2. A grant exists for that address and is in state `granted`.
 3. The envelope carries a capability matching that grant.
-4. The payload type is within scope.
-5. The volume and urgency ceilings are not exceeded.
+4. The volume ceiling for the period is not exceeded.
+5. The urgency ceiling is not exceeded by the `urgencyHint`, where one is
+   present.
 
 Failing 1, 2, or 3, the host MUST respond `unknown-recipient` or `no-consent`
 according to the rule in the security considerations below.
+
+The list stops where the ciphertext begins. The payload type and the purpose are
+inside the task and are enforced by the peers, as the payloads document
+specifies; the real urgency ceiling is applied by the recipient's client, since
+the header hint is optional and off by default. This is what keeps consent a
+delivery gate under encryption rather than only in a demo: a party with no
+relationship delivers nothing, and that is decided in the header, while a party
+that already holds a grant and sends outside it is an identified counterparty
+with a capped volume and severance one tap away.
 
 An address configured with `acceptsNewRequests: false`, which is the default for
 relationship addresses, MUST also refuse `consent.request`. This is what makes a
@@ -486,6 +704,48 @@ document: rotating all addresses while carrying forward only selected
 relationships accomplishes, in one operation, what unsubscribing from each
 counterparty individually cannot.
 
+## Ending belongs to whoever granted
+
+Both paths for issuers are acts of whoever granted the relationship, as the
+consent object's state rules already say of the transitions to `revoked`, and
+each operates on
+what belongs to that party: its own record of the relationship and the address
+it issued. The issuer's side has nothing to revoke, because the permission is
+not the issuer's and the address lives on the other end's host. An issuer that
+no longer wants to send stops sending, and MAY discard its own capability. That
+is local state: it does not travel, and it changes nothing on the other side,
+where the permission stands until whoever gave it withdraws it.
+
+Hosts therefore:
+
+1. MUST refuse a revocation request made from the issuer's side, which is the
+   side whose box did not issue the relationship's address.
+2. MUST make a revocation reach only the record of whoever revokes. On a host
+   that serves both ends, the two records of the same relationship live in the
+   same database under the same `uid`. The issuer's record changes through the
+   `consent.revoke` that reaches it, as in any federation, and under silent
+   retirement it does not change at all: silence that crosses into the other
+   record through a shared database is no longer silence.
+3. MUST NOT apply a received `consent.revoke` to a relationship in which the
+   recipient is the one who granted. The envelope travels from whoever granted
+   to the issuer, as the core document's envelope registry says, and a
+   `consent.revoke` whose `from` is an address issued by the destination box
+   itself revokes nothing: it is the other end trying to write into the
+   grantor's record. The response MUST be the same whether or not the envelope
+   had an effect, because answering differently would tell whoever forged it
+   whether that address belongs to that box, and linking a relationship's
+   address to the handle is exactly what per-relationship addresses exist to
+   prevent.
+
+The rule is written down because the reference implementation violated it on a
+host serving both ends. A revocation requested by the issuer also revoked the
+recipient's record and retired the relationship's address, and the polite
+variant built a `consent.revoke` whose `from` was the recipient's own address.
+In the other direction, a silent retirement by the recipient showed up at once
+as a revocation in the issuer's list. Between different hosts none of this
+appears, because the databases are different; on the reference host, where
+accounts of the same domain send each other tasks, it appeared every time.
+
 # Issuer Duties
 
 The general list of issuer duties lives in the anti-abuse document. Two belong
@@ -548,6 +808,42 @@ A grant authorises delivery to one address. It does not authorise the issuer to
 probe other addresses at the same host, and hosts MUST NOT reveal, in any
 response, whether a different address exists.
 
+## The offer revocation list
+
+The revocation list for offers does not contradict binding the capability to
+the consent object, which is what gives instant revocation without distributed
+revocation lists, and it is worth saying why. A sending capability is bound to a
+consent object and is not truly a bearer credential: killing the consent kills
+the capability at once, with no list at all. The in-person offer is the opposite
+by nature, because `to` is empty and it lives printed on a wall: the issuer does
+not know who holds it, and the only way to withdraw it is to publish that it was
+withdrawn. The list is published by a single domain, about objects that domain
+signed itself, and no host needs to replicate it: it is the issuer's record, not
+a revocation list distributed among peers.
+
+A domain that stops publishing the list, through an outage or by decision,
+takes its own permanent codes down with it, and never someone else's codes with
+a deadline. That is the safe side of failure: permanence is a promise that holds
+only while whoever made it keeps answering for it. A deleted organisation
+account is the same case at the scale of one issuer, which is why its codes
+enter the list when it leaves, without the list losing anything it already had.
+
+## The issuer does not change what it was granted
+
+The edge enforces the scope kept in the grantor's record, and a host that
+applied an incoming `consent.grant` to that record would hand the issuer a way
+to widen its own scope with an envelope it writes itself. That is why the
+revision rules separate the two records by address, as the rules for ending a
+relationship already did with revocation.
+
+## An empty list is a widening that does not look like one
+
+What exposed it was an honest screen, not a malicious client: in the reference
+implementation, unticking every purpose in order to narrow a grant granted all
+of them, and the confirmation, which left out any axis without a list, said
+nothing. A careless screen and a modified client produce the same scope,
+which is why the scope rules put the ceiling check on the host as well.
+
 # Privacy Considerations
 
 The consent record is, simultaneously, the auditable processing record that data
@@ -559,6 +855,11 @@ Two-issuer linkage is prevented by default: each issuer knows a different
 address, so two issuers cannot determine that they are talking to the same
 person without out-of-band information. This is the property that undermines the
 data-broker practice of cross-referencing databases by shared identifier.
+
+On a host that serves both ends, the shared database is a channel between them.
+Silent retirement is only silent if nothing the recipient does to its own record
+shows up in the issuer's record, which is why ending a relationship reaches only
+the record of whoever revokes.
 
 # Open Questions
 
@@ -574,18 +875,55 @@ data-broker practice of cross-referencing databases by shared identifier.
    consequence, and mixing the two would make one tap do two things. What
    remains open is whether the interface should offer both together in that
    case.
-5. **In which field the offer's purpose travels.** The anti-abuse document
+5. **How far the revocation list grows.** Revocation is final, so an `id`
+   never leaves the list, and a monotonic list grows forever. In practice it
+   stays short, because revoking a permanent code is a rare event, but the
+   protocol defines neither pruning nor mass revocation. The proposal under
+   study is a cut-off by issuance date published alongside the list (every offer
+   signed before a given instant is dead), which gives mass revocation at
+   constant cost and allows pruning from the list whatever the cut-off already
+   kills. It stays open because the cut-off would have to be per issuer, not per
+   domain, so as not to take down one organisation's plates when its neighbour
+   on the same host clears its own. Deleting an organisation account adds all of
+   that account's live offers to the list at once, which is the case a
+   per-issuer cut-off would settle in a single line.
+6. **In which field the offer's purpose travels.** The anti-abuse document
    requires every offer to declare the purpose it was sent under, and calls
    sending outside it a violation, not a grey area. No document defines where
    the purpose goes: the origin block in the data model document carries
    `issuer`, `consent`, `offeredAt`, and `envelope`, and not the purpose.
-   Without the field, the edge can enforce payload type, urgency ceiling, and
-   volume, but not `purposes`, which is exactly the item the conformance rule
-   calls a violation and not a grey area. The proposal is
+   Without the field, the purpose is checkable by **no one**: the edge enforces
+   volume, capability, and state, which is what it can see, and the peers, who
+   are the ones who enforce content scope, have nowhere to read the purpose of
+   that offer. The proposal is
    `ework:origin.purpose`, a string from the registered vocabulary, mandatory
    when the consent declares more than one purpose. It stays open because it
    touches the data model, and deserves deciding together with whether the
    purpose also enters the capability's signature, the `scopeHash`.
+7. **An issuer leaving on its own.** Ending a relationship leaves the issuer
+   with stopping and discarding its own capability, and the grantor's record
+   stays `granted`, with the address alive, until the grantor ends it. What
+   remains open is whether the protocol should carry an exit notice from the
+   issuer, so that the other end can retire the address without having to
+   guess from the silence, and how such a notice avoids becoming a contact
+   channel outside the scope. The deletion of the issuer's own account, the
+   first case that needed an answer, got silence in the compliance document:
+   the capability is destroyed with the account and no envelope leaves,
+   because a notice that existed only for deletion would announce the
+   deletion. If the general notice comes, deletion uses it, and it only serves
+   deletion if it does not tell apart whoever left the host from whoever just
+   stopped sending.
+8. **A request without a list.** The scope rules settle that an absent or empty
+   list does not restrict, so an issuer asks for any purpose by writing none: a
+   screen that shows only what is written has nothing to show, and the widest
+   possible request is also the shortest. What remains open is whether an
+   organisation's `consent.request` and `consent.offer` should be required to
+   carry `purposes` with at least one item, which would leave absence to
+   relationships between people, or whether it is enough to require the client
+   to say "any purpose" in plain words. An offer with no `scope` at all, the
+   extreme case, already has its reading fixed in the in-person offer section,
+   the same one the scope rules give, and the reference clients say "any
+   purpose" in plain words: what remains open is the obligation.
 
 # IANA Considerations
 

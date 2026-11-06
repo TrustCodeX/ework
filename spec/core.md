@@ -137,7 +137,13 @@ address it targets is refused at the edge, before it reaches the box.
   proof are in the identity document.
 - **Organization identity:** the domain itself (`utility.example`), with an
   optional local part for departments (`billing@utility.example`).
-- **URI scheme** (provisional, following the working name):
+- **URI scheme:** `ework:`, and it is **frozen**, whatever the final name of
+  the protocol turns out to be. Permanent counter codes (see the consent
+  document) already carry it in QR codes printed on shop walls, and native
+  applications register it with the operating system as a link scheme; neither
+  can be recalled. If the protocol is renamed, the new scheme is added, and
+  implementations MUST keep accepting `ework:` indefinitely: no scheme is ever
+  withdrawn. Registered forms:
   - `ework:cleia@ework.example` (identity)
   - `ework:task/018f3a2e-...` (task)
   - `ework:project/018f3b41-...` (project)
@@ -198,7 +204,9 @@ any new header field requires a privacy review, see the cryptography document.
 
 `id` plus `from` give idempotency: a receiver that has already processed an
 envelope with the same `id` MUST discard resends without side effects and
-respond with success.
+respond with success. The obligation lasts for the deduplication memory of the
+federation document, 31 days: it ends because retrying has a ceiling, and after
+it the same `id` only returns from a sender that breaks the rule.
 
 `ciphertext` SHOULD be padded to the next size class (512 B, 2 KiB, 8 KiB,
 32 KiB, 128 KiB, 256 KiB) before sending, so that the header reveals the class
@@ -225,7 +233,7 @@ implement. Receivers MUST reject an envelope without at least one valid proof.
 | `group.welcome` | member to members | MLS transport, see the cryptography document |
 | `group.proposal` | member to members | MLS transport, see the cryptography document |
 | `group.message` | member to members | MLS transport, see the cryptography document |
-| `key.rotation` | identity to selected peers | Address rotation declaration |
+| `key.rotation` | identity to selected peers | Address rotation declaration, with the re-signed consent object and the new capability |
 | `receipt.delivered` | host to host | Delivery receipt |
 | `receipt.processed` | recipient client to sender | Processing receipt, gated by the privacy policy; see the federation document |
 
@@ -493,6 +501,7 @@ becomes decoration.
 | `urn:ework:assisted` | Assisted mode: the host receives content in the clear and MAY read it. |
 | `urn:ework:payments` | Payment payloads, see the payloads document. |
 | `urn:ework:compose` | The host reads free text and proposes a structured task from it. |
+| `urn:ework:push` | The host keeps Web Push subscriptions per device and wakes clients with no content (see the sync document). |
 
 `urn:ework:e2ee` and `urn:ework:assisted` describe boxes, and a host MAY
 advertise both: the box decides, and the session's `mode` field, in the
@@ -617,12 +626,15 @@ this document, and this document as the reference.
 This section records unresolved points and is to be removed before publication
 as an RFC.
 
-1. Freeze `ework:` as the URI scheme, or use `web+ework:`? The answer depends
-   on the final name of the protocol.
-2. Normative envelope size limits (proposal: 256 KiB of body; above that, a
+1. Normative envelope size limits (proposal: 256 KiB of body; above that, a
    blob).
-3. CBOR already in version 0.1, or deferred until a real measurement shows the
+2. CBOR already in version 0.1, or deferred until a real measurement shows the
    gain?
+
+Closed on 2026-09-10: the `ework:` scheme is frozen (see Addresses and URIs),
+and the decision does not wait for the final name. `web+ework:` would only make
+sense if a web client registered a protocol handler in the browser, and it
+would be added, never swapped in.
 
 # Implementation Status
 
